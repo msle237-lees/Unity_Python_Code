@@ -100,7 +100,7 @@ def servo():
 class Sonar(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     datetime = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
-    sonar_data = db.Column(db.LongBinary, nullable=False)
+    sonar_data = db.Column(db.LargeBinary, nullable=False)
 
     def __repr__(self):
         return f"Sonar('{self.sonar_data}')"
@@ -427,5 +427,6 @@ parser.add_argument('-d', '--debug', type=bool, help='Enable debugging mode.', d
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    db.create_all()
+    with app.app_context():
+        db.create_all()  # Creates all tables based on models
     app.run(host=args.ip, port=args.port, debug=args.debug)
