@@ -54,4 +54,4 @@ class HardwareInterface:
     def parse_data(self, data):
         # Have to calculate the DOF values from the motor data
         # and update the servo data
-        
+        pass
