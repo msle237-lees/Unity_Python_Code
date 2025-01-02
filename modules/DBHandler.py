@@ -10,6 +10,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
 
 # Databases include both sensor and output data. Each database has a unique ID, datetime, and the data itself.
+# Inputs (6 DOF, 3 Servos)
 # Motors (0 - 256)
 # Servos (0 - 256) (The Arm is a servo if you think about it)
 # Sonar (2D Map of surroundings)
@@ -23,6 +24,49 @@ db = SQLAlchemy(app)
 # Internal Humidity
 # Internal Pressure
 # External Pressure
+
+# Inputs DB
+class Inputs(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    datetime = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
+    X = db.Column(db.Float, nullable=False)
+    Y = db.Column(db.Float, nullable=False)
+    Z = db.Column(db.Float, nullable=False)
+    Roll = db.Column(db.Float, nullable=False)
+    Pitch = db.Column(db.Float, nullable=False)
+    Yaw = db.Column(db.Float, nullable=False)
+    S1 = db.Column(db.Float, nullable=False)
+    S2 = db.Column(db.Float, nullable=False)
+    S3 = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f"Inputs('{self.X}', '{self.Y}', '{self.Z}', '{self.Roll}', '{self.Pitch}', '{self.Yaw}', '{self.S1}', '{self.S2}', '{self.S3}')"
+
+# Inputs Routes
+@app.route('/inputs', methods=['POST', 'GET'])
+def inputs():
+    if request.method == 'POST':
+        X = request.json['X']
+        Y = request.json['Y']
+        Z = request.json['Z']
+        Roll = request.json['Roll']
+        Pitch = request.json['Pitch']
+        Yaw = request.json['Yaw']
+        S1 = request.json['S1']
+        S2 = request.json['S2']
+        S3 = request.json['S3']
+        new_input = Inputs(X=X, Y=Y, Z=Z, Roll=Roll, Pitch=Pitch, Yaw=Yaw, S1=S1, S2=S2, S3=S3)
+        db.session.add(new_input)
+        db.session.commit()
+        return jsonify({'message': 'OK'})
+
+    elif request.method == 'GET':
+        latest_input_data = Inputs.query.order_by(Inputs.datetime.desc()).first()
+        if latest_input_data:
+            input_data = {'id': latest_input_data.id, 'datetime': latest_input_data.datetime, 'X': latest_input_data.X, 'Y': latest_input_data.Y, 'Z': latest_input_data.Z, 'Roll': latest_input_data.Roll, 'Pitch': latest_input_data.Pitch, 'Yaw': latest_input_data.Yaw, 'S1': latest_input_data.S1, 'S2': latest_input_data.S2, 'S3': latest_input_data.S3}
+            return jsonify({'input_data': input_data})
+        else:
+            return jsonify({'message': 'No data found'})
 
 # Motor DB
 class Motor(db.Model):

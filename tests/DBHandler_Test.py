@@ -5,6 +5,9 @@ BASE_URL = "http://localhost:5001"  # URL of the Flask app
 
 # Define the data payloads for POST requests for each endpoint
 test_data = {
+    "inputs": {
+        "X": 0.0, "Y": 0.0, "Z": 0.0, "Yaw": 0.0, "Pitch": 0.0, "Roll": 0.0, "S1": 0.0, "S2": 0.0, "S3": 0.0
+    },
     "motor": {
         "M1": 100, "M2": 110, "M3": 120, "M4": 130, "M5": 140, "M6": 150, "M7": 160, "M8": 170
     },
