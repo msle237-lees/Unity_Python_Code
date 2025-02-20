@@ -87,6 +87,9 @@ class MovementPackage:
         self.out_min = 0
         self.out_max = 255
 
+        # Initialize the deadzone for the input data specifically for the motor outputs
+        self.deadzone = 0.1
+
     def get_input_data(self) -> dict:
         # Fetch input data from the server
         try:
@@ -106,7 +109,41 @@ class MovementPackage:
         # The input data is expected to be a dictionary with keys 'X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw', S1, S2, S3, Arm, Hover
         # The motor data is expected to be a dictionary with keys 'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8'
         # This function calculates the motor speeds based on the input data and the horizontal and vertical mappings
-        pass
+        if self.input_data['Arm'] == 1:
+            if self.input_data['X'] >= self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+1}'] = self.mapping(self.input_data['X'] * self.horizontalMapping[0, i])
+            elif self.input_data['X'] <= -self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+1}'] = self.mapping(self.input_data['X'] * self.horizontalMapping[0, i])
+            elif self.input_data['Y'] >= self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+1}'] = self.mapping(self.input_data['Y'] * self.horizontalMapping[1, i])
+            elif self.input_data['Y'] <= -self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+1}'] = self.mapping(self.input_data['Y'] * self.horizontalMapping[1, i])
+            elif self.input_data['Yaw'] >= self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+1}'] = self.mapping(self.input_data['Yaw'] * self.horizontalMapping[2, i])
+            elif self.input_data['Yaw'] <= -self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+1}'] = self.mapping(self.input_data['Yaw'] * self.horizontalMapping[2, i])
+            else:
+                for i in range(4):
+                    self.motor_data[f'M{i+1}'] = 127
+            
+            if self.input_data['Z'] >= self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+5}'] = self.mapping(self.input_data['Z'] * self.verticalMapping[0, i])
+            elif self.input_data['Z'] <= -self.deadzone:
+                for i in range(4):
+                    self.motor_data[f'M{i+5}'] = self.mapping(self.input_data['Z'] * self.verticalMapping[0, i])
+            else:
+                for i in range(4):
+                    self.motor_data[f'M{i+5}'] = 127
+        else:
+            for i in range(8):
+                self.motor_data[f'M{i+1}'] = 127        
 
     def calculate_servo_angles(self) -> dict:
         # The input data is expected to be a dictionary with keys 'X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw', S1, S2, S3, Arm, Hover
@@ -138,3 +175,18 @@ class MovementPackage:
             self.logger.debug(f"Servo data sent: {self.servo_data}")
         except requests.RequestException as e:
             self.logger.error(f"Error sending servo data: {e}")
+
+    def run(self) -> None:
+        # Main loop to fetch input data, calculate motor speeds and servo angles, and send the data to the server
+        while True:
+            self.get_input_data()
+            self.calculate_motor_speeds()
+            self.calculate_servo_angles()
+            self.send_motor_data()
+            self.send_servo_data()
+
+
+if __name__ == "__main__":
+    # Example usage
+    movement_package = MovementPackage(host='localhost', port=5001, verbose=True)
+    movement_package.run()
