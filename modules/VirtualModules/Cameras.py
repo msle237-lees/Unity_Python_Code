@@ -5,11 +5,21 @@ from flask import Flask, Response
 from threading import Thread
 import time
 
+# Unbuilt Unity game screen capture from within Unity
+# Saved Coordinates:
+# 1: X=997, Y=294       1
+# 2: X=1718, Y=699      1
+# 3: X=1720, Y=295      2
+# 4: X=2437, Y=699      2
+# 5: X=1361, Y=701      3
+# 6: X=2080, Y=1109     3
+
 # Define screen capture areas (x, y, width, height)
 CAPTURE_REGIONS = [
-    (100, 100, 400, 300),  # Section 1
-    (600, 100, 400, 300),  # Section 2
-    (1100, 100, 400, 300)  # Section 3
+    # X1,  Y1,   X2  -  X1,  Y2  -  Y1
+    (1720, 295, 2437 - 1720, 699 - 295),  # Section 1
+    (997, 294, 1718 - 997, 699 - 294),    # Section 2
+    (1361, 701, 2080 - 1361, 1109 - 701)  # Section 3
 ]
 
 app = Flask(__name__)

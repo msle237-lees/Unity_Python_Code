@@ -32,7 +32,8 @@ class MovementPackage:
         self.servo_url = f'http://{self.host}:{self.port}/servo'
 
         self.logger.debug(f"Inputs URL: {self.inputs_url}")
-        self.logger.debug(f"Outputs URL: {self.outputs_url}")
+        self.logger.debug(f"Motor URL: {self.motor_url}")
+        self.logger.debug(f"Servo URL: {self.servo_url}")
 
         # Initialize the input, motor, and servo data dictionaries derived from the DBHandler class
         self.input_data = {

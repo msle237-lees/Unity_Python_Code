@@ -10,7 +10,7 @@ class SubPos:
     z: float
 
 @dataclass
-class SubVel:
+class SubMotorVel:
     M1 : float
     M2 : float
     M3 : float
@@ -19,6 +19,15 @@ class SubVel:
     M6 : float
     M7 : float
     M8 : float
+
+@dataclass
+class SubVel:
+    X: float
+    Y: float
+    Z: float
+    Roll: float
+    Pitch: float
+    Yaw: float
 
 @dataclass
 class SubData:
@@ -43,8 +52,8 @@ class Controller:
     def get_sub_vel(self) -> SubVel:
         return self.unity_comms.GetVel(ResultClass=SubVel)
     
-    def set_sub_vel(self, vel: SubVel) -> None:
-        self.unity_comms.SetVel(vel)
+    def set_sub_vel(self, vel: SubMotorVel) -> None:
+        self.unity_comms.SetSubMotorVel(vel)
     
     def get_sub_depth(self) -> float:
         return self.unity_comms.GetDistanceToFloor()
@@ -57,25 +66,19 @@ class Controller:
         DOFRawData = response.json()
         for key in DOFRawData.keys():
             DOFRawData[key] = self.mapping(DOFRawData[key])
-        return SubVel(DOFRawData['M1'], DOFRawData['M2'], DOFRawData['M3'], \
+        return SubMotorVel(DOFRawData['M1'], DOFRawData['M2'], DOFRawData['M3'], \
                       DOFRawData['M4'], DOFRawData['M5'], DOFRawData['M6'],\
                       DOFRawData['M7'], DOFRawData['M8'])
 
-    def debug(self, pos:SubPos, vel:SubVel, depth:float) -> None:
+    def debug(self, pos:SubPos, vel:SubMotorVel, depth:float) -> None:
         print(f"Pos: {pos}\nVel: {vel}\nDepth: {depth}")
     
     def run(self) -> None:
-        while True:
-            pos = self.get_sub_pos()
-            vel = self.get_sub_vel()
-            depth = self.get_sub_depth()
-            controller_vels = self.get_controller_vels()
-            self.debug(pos, vel, depth)
-            self.set_sub_vel(controller_vels)
+        pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=5000)
+    parser.add_argument('--port', type=int, default=5005)
     args = parser.parse_args()
     controller = Controller(args)
     controller.run()

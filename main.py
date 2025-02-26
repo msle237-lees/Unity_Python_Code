@@ -1,90 +1,70 @@
-from flask import Flask, render_template, jsonify
+# Handles the creation and hosting of all necessary databases for the sub to function. This allows easier transmission of data and data logging.
+
+from flask import Flask, request, jsonify, render_template
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timezone
+import argparse # For command line arguments when running the script
 import subprocess
-import argparse
 import logging
 import sys
-import os
 
+# Databases include both sensor and output data. Each database has a unique ID, datetime, and the data itself.
+# Inputs (6 DOF, 3 Servos, 1 Arm, 1 Hover)
+# Motors (0 - 256)
+# Servos (0 - 256) (The Arm is a servo if you think about it)
+# Sonar (2D Map of surroundings)
+# IMU (Accelerometer / Gyroscope / Magenetometer)
+# Voltage / Current Measurements (Voltage and Amperage)
+# Hydrophone heading direction (Compass directions)
+# Leak Detection
+# Depth Sensor (meters)
+# Internal Temperature
+# External Temperature
+# Internal Humidity
+# Internal Pressure
+# External Pressure
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.debug("Logging initialized")
+# Initialize the database object without binding to an app yet
+db = SQLAlchemy()
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description='Flask App for Camera Control')
-parser.add_argument('--host', type=str, default='localhost', help='Host address')
-parser.add_argument('--port', type=int, default=5000, help='Port number')
-parser.add_argument('-RWCP', '--camera_package', type=bool, default=False, help='Use camera package')
-parser.add_argument('-MP', '--movement_package', type=bool, default=False, help='Use movement package')
-parser.add_argument('-RWHI', '--hardware_interface', type=bool, default=False, help='Use hardware interface')
-parser.add_argument('-AI', '--ai_package', type=bool, default=False, help='Use AI package')
-parser.add_argument('-VHI', '--virtual_hardware_interface', type=bool, default=False, help='Use virtual hardware interface')
-parser.add_argument('-VCP', '--virtual_camera_package', type=bool, default=False, help='Use virtual camera package')
-
-def run_AI_package():
-    # Run the AI package script
-    logger.debug("Running AI package script")
-    subprocess.run(['python', 'modules/AI.py'])
-
-def run_camera_package():
-    # Run the camera package script
-    logger.debug("Running camera package script")
-    subprocess.run(['python', 'modules/RWModules/Cameras.py'])
-
-def run_DBHandler():
-    # Run the DBHandler script
-    logger.debug("Running DBHandler script")
-    subprocess.run(['python', 'modules/DBHandler.py'])
-
-def run_hardware_interface():
-    # Run the hardware interface script
-    logger.debug("Running hardware interface script")
-    subprocess.run(['python', 'modules/RWModules/HardwareInterface.py'])
-
-def run_movement_package():
-    # Run the movement package script
-    logger.debug("Running movement package script")
-    subprocess.run(['python', 'modules/MovementPackage.py'])
-
-def run_VirtualModules():
-    # Run the VirtualModules script
-    logger.debug("Running VirtualModules script")
-    subprocess.run(['python', 'modules/VirtualModules/HardwareInterface.py'])
-    subprocess.run(['python', 'modules/VirtualModules/Cameras.py'])
-
-# Create the flask app
+# Initialize the Flask app
 app = Flask(__name__)
-logger.debug("Flask app created")
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'  # SQLite database file
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Create the homepage route
-@app.route('/')
-def index():
-    # Render the index.html template
-    return render_template('index.html')
+# Bind the db instance to the app
+db.init_app(app)
 
-# Start the Flask app
+# Ensure database tables exist before running the app
+with app.app_context():
+    db.create_all()  # This will create all tables
+    db.session.commit()
+    print("✅ Database tables created successfully")
+
+# Define a test model
+class inputs(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    datetime = db.Column(db.DateTime, nullable=True, default=datetime.now(timezone.utc))
+    X = db.Column(db.Float, nullable=False)
+    Y = db.Column(db.Float, nullable=False)
+    Z = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f"Inputs('{self.X}', '{self.Y}', '{self.Z}')"
+
+# Test endpoint
+@app.route('/inputs', methods=['POST'])
+def add_input():
+    data = request.get_json()
+    new_input = inputs(X=data['X'], Y=data['Y'], Z=data['Z'])
+    db.session.add(new_input)
+    db.session.commit()
+    return jsonify({'message': 'Data added successfully'}), 201
+
 if __name__ == '__main__':
-    # Parse the command line arguments
+    parser = argparse.ArgumentParser(description='Flask App for AUV')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host address')
+    parser.add_argument('--port', type=int, default=5001, help='Port number')
     args = parser.parse_args()
 
-    if args.ai_package:
-        run_AI_package()
-    if args.camera_package:
-        run_camera_package()
-    if args.DBHandler:
-        run_DBHandler()
-    if args.hardware_interface:
-        run_hardware_interface()
-    if args.movement_package:
-        run_movement_package()
-
-    # Run the Flask app
     app.run(host=args.host, port=args.port, debug=True)
