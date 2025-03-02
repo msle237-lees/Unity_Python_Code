@@ -178,6 +178,7 @@ class MovementPackage:
             self.logger.error(f"Error sending servo data: {e}")
 
     def run(self) -> None:
+        time.sleep(10)
         # Main loop to fetch input data, calculate motor speeds and servo angles, and send the data to the server
         while True:
             self.get_input_data()

@@ -1,0 +1,37 @@
+{
+    "default_controller": "Generic_Gamepad",
+    "controllers": {
+        "AUV_Flight_Controller": {
+            "in_min": -0.666,
+            "in_max": 0.666,
+            "out_min": -1,
+            "out_max": 1,
+            "output_mapping": {
+                "X": { "type": "axis", "index": 4 },
+                "Y": { "type": "axis", "index": 3 },
+                "Z": { "type": "axis", "index": 1 },
+                "Yaw": { "type": "axis", "index": 0 },
+                "Roll": { "type": "axis", "index": 2 },
+                "Pitch": { "type": "axis", "index": 5 },
+                "Arm": { "type": "button", "index": 0 },
+                "Hover": { "type": "button", "index": 11 }
+            }
+        },
+        "Generic_Gamepad": {
+            "in_min": -1,
+            "in_max": 1,
+            "out_min": -1,
+            "out_max": 1,
+            "output_mapping": {
+                "X": { "type": "axis", "index": 0 },
+                "Y": { "type": "axis", "index": 1 },
+                "Z": { "type": "axis", "index": 2 },
+                "Yaw": { "type": "axis", "index": 3 },
+                "Roll": { "type": "axis", "index": 4 },
+                "Pitch": { "type": "axis", "index": 5 },
+                "Arm": { "type": "button", "index": 1 },
+                "Hover": { "type": "button", "index": 10 }
+            }
+        }
+    }
+}

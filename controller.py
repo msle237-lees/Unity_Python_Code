@@ -6,10 +6,6 @@ import json
 import argparse
 import sys
 
-# This controller class only works with the AUV flight controller found at the link below. You can change the Calculate_Data function to work with any other flight controller.
-# Change the axis' and buttons to match the controller you are using. You can find the axis' and buttons of your controller by using the -i flag with a True value. 
-# This will log the raw input data from the controller. 
-
 class Controller:
     def __init__(self, args: argparse.Namespace):
         pygame.init()
@@ -19,73 +15,58 @@ class Controller:
         self.joystick = pygame.joystick.Joystick(0)
         self.joystick.init()
 
-        self.out_data = {
-            "X": 0,
-            "Y": 0,
-            "Z": 0,
-            "Roll": 0,
-            "Pitch": 0,
-            "Yaw": 0,
-            "S1": 0,
-            "S2": 0,
-            "S3": 0,
-            "Arm": 0,
-            "Hover": 0
-        }
-
-        self.logger = self.configure_logging()
-
         self.args = args
-
-        self.in_min = -0.666
-        self.in_max = 0.666
-        self.out_min = -1
-        self.out_max = 1
-
+        self.logger = self.configure_logging()
         self.url = f"http://{args.ip}:{args.port}/inputs"
 
+        # Load full configuration
+        full_config = self.load_config(args.config)
+        
+        # Determine which controller configuration to use
+        self.controller_type = args.controller or full_config.get("default_controller", "AUV_Flight_Controller")
+        if self.controller_type not in full_config["controllers"]:
+            print(f"Error: Controller type '{self.controller_type}' not found in configuration.")
+            sys.exit(1)
+        
+        self.config = full_config["controllers"][self.controller_type]
+        
+        self.out_data = {key: 0 for key in self.config["output_mapping"].keys()}
+        
+        self.in_min = self.config["in_min"]
+        self.in_max = self.config["in_max"]
+        self.out_min = self.config["out_min"]
+        self.out_max = self.config["out_max"]
+    
+    def load_config(self, config_path):
+        try:
+            with open(config_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading configuration file: {e}")
+            sys.exit(1)
+    
     def get_data(self) -> dict:
-        data = {
+        return {
             "axes": [self.joystick.get_axis(i) for i in range(self.joystick.get_numaxes())],
             "buttons": [self.joystick.get_button(i) for i in range(self.joystick.get_numbuttons())],
             "hats": [self.joystick.get_hat(i) for i in range(self.joystick.get_numhats())]
         }
-        return data
     
     def parse_data(self, data) -> tuple:
-        for a in data["axes"]:
-            if a < 0.1 and a > -0.1:
-                a = 0
-        for b in data["buttons"]:
-            if b < 0.1 and b > -0.1:
-                b = 0
-        axes = [round(a, 3) for a in data["axes"]]
-        buttons = [round(b, 3) for b in data["buttons"]]
+        axes = [round(a, 3) if abs(a) >= 0.1 else 0 for a in data["axes"]]
+        buttons = [b for b in data["buttons"]]
         return axes, buttons
     
-    def calculate_data(self, data) -> tuple:
+    def calculate_data(self, data) -> None:
         axes, buttons = data
-
         axes = [self.calculate_mapping(a) for a in axes]
-        
-        if buttons[0]:
-            self.out_data["Arm"] = 0
-        else:
-            self.out_data["Arm"] = 1
 
-        if buttons[11]:
-            self.out_data["Hover"] = 0
-        else:
-            self.out_data["Hover"] = 1
-
-        self.out_data["Y"] = round(axes[3], 3)
-        self.out_data["X"] = round(axes[4], 3)
-        self.out_data["Z"] = round(axes[1],3)
-        self.out_data["Yaw"] = round(axes[0],3)
-
-        self.out_data["Roll"] = 0
-        self.out_data["Pitch"] = 0
-        
+        for key, mapping in self.config["output_mapping"].items():
+            if mapping["type"] == "axis":
+                self.out_data[key] = round(axes[mapping["index"]], 3)
+            elif mapping["type"] == "button":
+                self.out_data[key] = int(buttons[mapping["index"]])
+    
     def calculate_mapping(self, value: float) -> float:
         return (value - self.in_min) * (self.out_max - self.out_min) / (self.in_max - self.in_min) + self.out_min
     
@@ -96,7 +77,7 @@ class Controller:
         except requests.exceptions.RequestException as e:
             print(e)
             sys.exit()
-
+    
     def configure_logging(self):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
@@ -106,7 +87,7 @@ class Controller:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         return logger
-
+    
     def log_data(self, data):
         formatted_data = " | ".join(f"{key}: {value:6.2f}" for key, value in self.out_data.items())
 
@@ -118,10 +99,10 @@ class Controller:
             log_entry = f"{data} | {formatted_data}"
 
         if self.args.verbose:
-            print(log_entry.ljust(80), end="\r")  # Adjust 80 to the desired fixed width
+            print(log_entry.ljust(80), end="\r")
         else:
             self.logger.info(log_entry)
-
+    
     def run(self):
         while True:
             try:
@@ -141,6 +122,9 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=bool, help="Log only processed output")
     parser.add_argument("--ip", type=str, default="localhost", help="IP address of the server to send data to")
     parser.add_argument("--port", type=int, default=5001, help="Port of the server to send data to")
+    parser.add_argument("--config", type=str, default="configs\controller_config.json", help="Path to the controller config JSON file")
+    parser.add_argument("--controller", type=str, help="Specify which controller profile to use")
     args = parser.parse_args()
+    
     controller = Controller(args)
     controller.run()

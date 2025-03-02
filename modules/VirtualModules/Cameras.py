@@ -56,6 +56,7 @@ def video_feed3():
     return Response(generate_feed(CAPTURE_REGIONS[2]), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
+    time.sleep(10)
     # Run the Flask app on port 5000
     thread = Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'debug': False})
     thread.start()

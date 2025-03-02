@@ -2,6 +2,7 @@ import argparse
 from dataclasses import dataclass
 from peaceful_pie.unity_comms import UnityComms
 import requests
+import time
 
 @dataclass
 class SubPos:
@@ -77,6 +78,7 @@ class Controller:
         pass
 
 if __name__ == '__main__':
+    time.sleep(10)
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=5005)
     args = parser.parse_args()

@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime, timezone
+import subprocess
 import argparse
 import logging
 import sys
@@ -321,6 +322,19 @@ if __name__ == '__main__':
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Host address')
     parser.add_argument('--port', type=int, default=5001, help='Port number')
     args = parser.parse_args()
+
+    # Define all subprocesses that can be run in the background
+    py = sys.executable
+    processes = {
+        [py, 'modules/MovementPackage.py', '--host', args.host, '--port', str(args.port)],
+        [py, 'modules/VirtualModules/Cameras.py', '--host', args.host, '--port', str(args.port)],
+        [py, 'modules/VirtualModules/HardwareInterface.py', '--host', args.host, '--port', str(args.port)],
+        [py, 'modules/AIPackage.py', '--host', args.host, '--port', str(args.port)]
+    }
+
+    # Start all subprocesses
+    for process in processes:
+        subprocess.Popen(process)
 
     logger.info(f"Starting Flask app on {args.host}:{args.port}")
     app.run(host=args.host, port=args.port, debug=True)
