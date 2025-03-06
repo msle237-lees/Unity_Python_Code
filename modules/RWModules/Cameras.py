@@ -1,6 +1,6 @@
 from flask import Flask, url_for
 from support import WebCamService, routes
-from support.camera_1 import video_0
+from support.camera_1 import video_0_stream
 # from modules.support.camera_2 import video_1
 
 # Creating the custom logger
@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
-app.register_blueprint(video_0)
+app.register_blueprint(video_0_stream)
 # app.register_blueprint(camera_2)
 app.register_blueprint(routes.get_blueprint())
 

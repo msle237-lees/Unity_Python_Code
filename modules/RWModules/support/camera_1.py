@@ -5,7 +5,7 @@ from support.WebCamService import WebCam
 zedcam_blueprint = Blueprint('video_0', __name__)
 
 @zedcam_blueprint.route('/video_0')
-def video_0():
+def video_0_stream():
     try:
         # Replace with your IP camera URL
         zedcam = WebCam(camera_number=0)
