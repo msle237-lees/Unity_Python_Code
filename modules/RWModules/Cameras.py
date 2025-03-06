@@ -1,7 +1,7 @@
 from flask import Flask, url_for
 from support import WebCamService, routes
-from support.camera_1 import camera_1
-# from modules.support.camera_2 import camera_2
+from support.camera_1 import video_0
+# from modules.support.camera_2 import video_1
 
 # Creating the custom logger
 import logging
