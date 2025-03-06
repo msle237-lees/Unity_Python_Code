@@ -326,10 +326,10 @@ if __name__ == '__main__':
     # Define all subprocesses that can be run in the background
     py = sys.executable
     processes = {
-        [py, 'modules/MovementPackage.py', '--host', args.host, '--port', str(args.port)],
-        [py, 'modules/VirtualModules/Cameras.py', '--host', args.host, '--port', str(args.port)],
-        [py, 'modules/VirtualModules/HardwareInterface.py', '--host', args.host, '--port', str(args.port)],
-        [py, 'modules/AIPackage.py', '--host', args.host, '--port', str(args.port)]
+        # [py, 'modules/MovementPackage.py', '--host', args.host, '--port', str(args.port)],
+        [py, 'modules/VirtualModules/Cameras.py', '--host', args.host, '--port', str(args.port)]
+        # [py, 'modules/VirtualModules/HardwareInterface.py', '--host', args.host, '--port', str(args.port)]
+        # [py, 'modules/AIPackage.py', '--host', args.host, '--port', str(args.port)]
     }
 
     # Start all subprocesses
