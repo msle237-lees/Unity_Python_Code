@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
-app.register_blueprint(camera_1)
+app.register_blueprint(video_0)
 # app.register_blueprint(camera_2)
 app.register_blueprint(routes.get_blueprint())
 
