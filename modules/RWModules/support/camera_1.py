@@ -2,7 +2,7 @@ from flask import Flask, render_template, Response, Blueprint
 from support import routes
 from support.WebCamService import WebCam
 
-zedcam_blueprint = Blueprint('camera_1', __name__)
+zedcam_blueprint = Blueprint('video_0', __name__)
 
 @zedcam_blueprint.route('/video_0')
 def video_0():
