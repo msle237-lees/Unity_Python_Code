@@ -328,11 +328,11 @@ if __name__ == '__main__':
     # [py, 'modules/VirtualModules/HardwareInterface.py', '--host', args.host, '--port', str(args.port)]
     # [py, 'modules/AIPackage.py', '--host', args.host, '--port', str(args.port)]
     py = sys.executable
-    processes = {[py, 'modules/VirtualModules/Cameras.py', '--host', args.host, '--port', str(args.port)]}
+    processes = [py, 'modules/VirtualModules/Cameras.py', '--host', args.host, '--port', str(args.port)]
 
     # Start all subprocesses
-    for process in processes:
-        subprocess.Popen(process)
+    #for process in processes:
+    subprocess.Popen(processes)
 
     logger.info(f"Starting Flask app on {args.host}:{args.port}")
     app.run(host=args.host, port=args.port, debug=True)
