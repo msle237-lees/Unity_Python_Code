@@ -327,12 +327,17 @@ if __name__ == '__main__':
     # [py, 'modules/MovementPackage.py', '--host', args.host, '--port', str(args.port)],
     # [py, 'modules/VirtualModules/HardwareInterface.py', '--host', args.host, '--port', str(args.port)]
     # [py, 'modules/AIPackage.py', '--host', args.host, '--port', str(args.port)]
-    py = sys.executable
-    processes = [py, 'modules/RWModules/Cameras.py']
+    # py = sys.executable
+    # processes = [py, 'modules/RWModules/Cameras.py']
 
     # Start all subprocesses
     #for process in processes:
-    subprocess.Popen(processes)
+    # subprocess.Popen(processes)
 
     logger.info(f"Starting Flask app on {args.host}:{args.port}")
+
+    with app.app_context():
+        db.create_all()
+        db.session.commit()
+
     app.run(host=args.host, port=args.port, debug=True)

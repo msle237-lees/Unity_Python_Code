@@ -123,7 +123,7 @@ if __name__ == "__main__":
     parser.add_argument("--ip", type=str, default="localhost", help="IP address of the server to send data to")
     parser.add_argument("--port", type=int, default=5001, help="Port of the server to send data to")
     parser.add_argument("--config", type=str, default="configs\controller_config.json", help="Path to the controller config JSON file")
-    parser.add_argument("--controller", type=str, help="Specify which controller profile to use")
+    parser.add_argument("--controller", type=str, help="Specify which controller profile to use", default="AUV_Flight_Controller")
     args = parser.parse_args()
     
     controller = Controller(args)
