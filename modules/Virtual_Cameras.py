@@ -6,20 +6,18 @@ from threading import Thread
 import time
 
 # Unbuilt Unity game screen capture from within Unity
-# Saved Coordinates:
-# 1: X=997, Y=294       1
-# 2: X=1718, Y=699      1
-# 3: X=1720, Y=295      2
-# 4: X=2437, Y=699      2
-# 5: X=1361, Y=701      3
-# 6: X=2080, Y=1109     3
-
 # Define screen capture areas (x, y, width, height)
+cam_1_top_left = (997, 294)  # Top-left corner of the first camera
+cam_1_bottom_right = (1718, 699)  # Bottom-right corner of the first camera
+cam_2_top_left = (1720, 295)  # Top-left corner of the second camera
+cam_2_bottom_right = (2437, 699)  # Bottom-right corner of the second camera
+cam_3_top_left = (1361, 701)  # Top-left corner of the third camera
+cam_3_bottom_right = (2080, 1109)  # Bottom-right corner of the third camera
+
 CAPTURE_REGIONS = [
-    # X1,  Y1,   X2  -  X1,  Y2  -  Y1
-    (1720, 295, 2437 - 1720, 699 - 295),  # Section 1
-    (997, 294, 1718 - 997, 699 - 294),    # Section 2
-    (1361, 701, 2080 - 1361, 1109 - 701)  # Section 3
+    (cam_1_top_left[0], cam_1_top_left[1], cam_1_bottom_right[0] - cam_1_top_left[0], cam_1_bottom_right[1] - cam_1_top_left[1]),  # Section 1
+    (cam_2_top_left[0], cam_2_top_left[1], cam_2_bottom_right[0] - cam_2_top_left[0], cam_2_bottom_right[1] - cam_2_top_left[1]),  # Section 2
+    (cam_3_top_left[0], cam_3_top_left[1], cam_3_bottom_right[0] - cam_3_top_left[0], cam_3_bottom_right[1] - cam_3_top_left[1])   # Section 3
 ]
 
 app = Flask(__name__)
