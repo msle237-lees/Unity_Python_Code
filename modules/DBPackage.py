@@ -210,8 +210,7 @@ def add_velocity():
         return jsonify({'message': str(e)}), 400
     
 # Initialize the database and create tables
-@app.before_first_request
-def create_tables():
+with app.app_context():
     db.create_all()
 
 # Configure the arguments for the Flask app

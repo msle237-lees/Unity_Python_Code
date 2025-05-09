@@ -25,7 +25,7 @@ def main():
         subprocess.Popen(subprocesses[1])
 
     subprocess.Popen(subprocesses[0])
-    subprocess.Popen(subprocesses[3])
+    # subprocess.Popen(subprocesses[3])
 
     while True:
         time.sleep(1)
