@@ -1,0 +1,26 @@
+{
+    "joystick_1": {
+        "name": "Spektrum InterLink DX",
+        "axis": {
+            "X": 4,
+            "Y": 3,
+            "Z": 1,
+            "Yaw": 0,
+            "S3": 7
+        }, "button": {
+            "S1_Increase": {
+                "button": 1
+            }, "S1_Decrease": {
+                "button": 2
+            }, "S2_Increase": {
+                "button": 10
+            }, "S2_Decrease": {
+                "button": 9
+            }, "Arm": {
+                "button": 0
+            }
+        }, "hat": {
+        
+        }
+    }
+}
