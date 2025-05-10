@@ -14,7 +14,8 @@ db = SQLAlchemy(app)
 
 # Inputs class to store the submarine's input data (X, Y, Z, Roll, Pitch, Yaw, Arm, S1, S2, S3)
 class Inputs(db.Model):
-    datetime = db.Column(db.DateTime, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    datetime = db.Column(db.DateTime)
     X = db.Column(db.Float, nullable=False)
     Y = db.Column(db.Float, nullable=False)
     Z = db.Column(db.Float, nullable=False)
@@ -31,7 +32,8 @@ class Inputs(db.Model):
 
 # Position class to store the submarine's position data (X, Y, Z)
 class Position(db.Model):
-    datetime = db.Column(db.DateTime, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    datetime = db.Column(db.DateTime)
     X = db.Column(db.Float, nullable=False)
     Y = db.Column(db.Float, nullable=False)
     Z = db.Column(db.Float, nullable=False)
@@ -41,7 +43,8 @@ class Position(db.Model):
 
 # Rotation class to store the submarine's rotation data (Roll, Pitch, Yaw)
 class Rotation(db.Model):
-    datetime = db.Column(db.DateTime, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    datetime = db.Column(db.DateTime)
     Roll = db.Column(db.Float, nullable=False)
     Pitch = db.Column(db.Float, nullable=False)
     Yaw = db.Column(db.Float, nullable=False)
@@ -51,7 +54,8 @@ class Rotation(db.Model):
 
 # Velocity class to store the submarine's velocity data (Vx, Vy, Vz)  
 class Velocity(db.Model):
-    datetime = db.Column(db.DateTime, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    datetime = db.Column(db.DateTime)
     Vx = db.Column(db.Float, nullable=False)
     Vy = db.Column(db.Float, nullable=False)
     Vz = db.Column(db.Float, nullable=False)
