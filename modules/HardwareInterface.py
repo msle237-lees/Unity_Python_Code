@@ -32,6 +32,9 @@ class unityInterface:
     def __init__(self, unity_port: int, inputs_url: str, inputs_port: int) -> None:
         self.unity_comms = UnityComms(port=unity_port)
         self.url = f'http://{inputs_url}:{inputs_port}/inputs'
+        self.pos_url = f'http://{inputs_url}:{inputs_port}/position'
+        self.rot_url = f'http://{inputs_url}:{inputs_port}/rotation'
+        self.vel_url = f'http://{inputs_url}:{inputs_port}/velocity'
 
     def get_submarine_position(self) -> SubPos:
         """Get the submarine position from Unity."""
@@ -71,6 +74,55 @@ class unityInterface:
                 return SubVel(**data)
         return None
     
+    def post_data(self, subvel : SubVel, subpos : SubPos, subrot : SubRot) -> None:
+        """
+        @brief Post the submarine's position, rotation, and velocity to the DBPackage.
+        @param subvel: The submarine's velocity.
+        @param subpos: The submarine's position.
+        @param subrot: The submarine's rotation.
+        @return None
+        """
+        pos_data = {
+            'datetime': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'X': subpos.x,
+            'Y': subpos.y,
+            'Z': subpos.z
+        }
+        post_request = requests.post(self.pos_url, json=pos_data)
+        if post_request.status_code == 200:
+            # print("Position data sent successfully.")
+            pass
+        else:
+            print(f"Failed to send position data. Status code: {post_request.status_code}")
+        rot_data = {
+            'datetime': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'Roll': subrot.roll,
+            'Pitch': subrot.pitch,
+            'Yaw': subrot.yaw
+        }
+        post_request = requests.post(self.rot_url, json=rot_data)
+        if post_request.status_code == 200:
+            # print("Rotation data sent successfully.")
+            pass
+        else:
+            print(f"Failed to send rotation data. Status code: {post_request.status_code}")
+        vel_data = {
+            'datetime': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'Vx': subvel.x,
+            'Vy': subvel.y,
+            'Vz': subvel.z,
+            'Roll': subvel.roll,
+            'Pitch': subvel.pitch,
+            'Yaw': subvel.yaw
+        }
+        post_request = requests.post(self.vel_url, json=vel_data)
+        if post_request.status_code == 200:
+            # print("Velocity data sent successfully.")
+            pass
+        else:
+            print(f"Failed to send velocity data. Status code: {post_request.status_code}")
+        # print(f"Data sent successfully: {data}")
+    
     def run(self) -> None:
         while True:
             # Get the submarine position, rotation, and velocity from Unity
@@ -86,6 +138,9 @@ class unityInterface:
             if input_data:
                 # Set the submarine's velocity in Unity
                 self.set_submarine_velocity(input_data)
+
+            # Post the submarine's position, rotation, and velocity to the DBPackage
+            self.post_data(sub_vel, sub_pos, sub_rot)
 
             time.sleep(0.1) # Sleep for a short duration to avoid overwhelming the server
 
