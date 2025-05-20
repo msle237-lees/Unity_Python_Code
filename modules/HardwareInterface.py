@@ -55,9 +55,12 @@ class unityInterface:
         """Set the submarine velocity in Unity."""
         self.unity_comms.setSubSetVel(subSetVel=velocity)
 
-    def restart_sub_position(self) -> None:
+    def restart_sub_position(self, data) -> None:
         """Restart the submarine position in Unity."""
-        self.unity_comms.restartPosition()
+        if data['Arm']:
+            pass
+        else:
+            self.unity_comms.restartPosition()
 
     def get_data(self) -> SubVel:
         """Get the input data from the RL server."""
@@ -67,10 +70,11 @@ class unityInterface:
         if response.status_code == 200:
             data = response.json()
             if isinstance(data, list) and data:
-                data = data[-1]
+                data = data[-1]            
             if isinstance(data, dict):
                 # Convert keys to lowercase, exclude the 'datetime' and 'id' keys, and convert the remaining dictionary to a dataclass instance
                 data = {k.lower(): v for k, v in data.items() if k.lower() not in ['datetime', 'id']}
+                self.restart_sub_position(data)
                 return SubVel(**data)
         return None
     
