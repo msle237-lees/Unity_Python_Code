@@ -15,7 +15,7 @@ def main():
     subprocesses = [
         ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],
         ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],
-        ['python', 'modules/HardwareInterface.py', '--unity_port', '', '--host', args.ip, '--port', str(args.port)],
+        ['python', 'modules/HardwareInterface.py'],
         ['python', 'modules/Virtual_Cameras.py']
     ]
 

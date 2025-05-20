@@ -29,7 +29,7 @@ class SubVel:
 
 
 class unityInterface:
-    def __init__(self, unity_port: int, inputs_url: str, inputs_port: int) -> None:
+    def __init__(self, unity_port: str = 9999, inputs_url: str = '127.0.0.1', inputs_port: int = 9999) -> None:
         self.unity_comms = UnityComms(port=unity_port)
         self.url = f'http://{inputs_url}:{inputs_port}/inputs'
         self.pos_url = f'http://{inputs_url}:{inputs_port}/position'
@@ -57,7 +57,7 @@ class unityInterface:
 
     def restart_sub_position(self, data) -> None:
         """Restart the submarine position in Unity."""
-        if data['Arm']:
+        if data['arm']:
             pass
         else:
             self.unity_comms.restartPosition()
@@ -71,10 +71,12 @@ class unityInterface:
             data = response.json()
             if isinstance(data, list) and data:
                 data = data[-1]            
+                print(data.keys())
             if isinstance(data, dict):
                 # Convert keys to lowercase, exclude the 'datetime' and 'id' keys, and convert the remaining dictionary to a dataclass instance
-                data = {k.lower(): v for k, v in data.items() if k.lower() not in ['datetime', 'id']}
+                data = {k.lower(): v for k, v in data.items() if k.lower() not in ['datetime', 'id', 's1', 's2', 's3']}
                 self.restart_sub_position(data)
+                del data['arm']
                 return SubVel(**data)
         return None
     
@@ -93,7 +95,7 @@ class unityInterface:
             'Z': subpos.z
         }
         post_request = requests.post(self.pos_url, json=pos_data)
-        if post_request.status_code == 200:
+        if post_request.status_code == 201:
             # print("Position data sent successfully.")
             pass
         else:
@@ -105,7 +107,7 @@ class unityInterface:
             'Yaw': subrot.yaw
         }
         post_request = requests.post(self.rot_url, json=rot_data)
-        if post_request.status_code == 200:
+        if post_request.status_code == 201:
             # print("Rotation data sent successfully.")
             pass
         else:
@@ -120,7 +122,7 @@ class unityInterface:
             'Yaw': subvel.yaw
         }
         post_request = requests.post(self.vel_url, json=vel_data)
-        if post_request.status_code == 200:
+        if post_request.status_code == 201:
             # print("Velocity data sent successfully.")
             pass
         else:
