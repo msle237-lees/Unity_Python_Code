@@ -52,7 +52,16 @@ class unityInterface:
         return res
     
     def set_submarine_velocity(self, velocity: SubVel) -> None:
-        """Set the submarine velocity in Unity."""
+        """
+            Set the submarine velocity in Unity.
+            X = F (-1) / B (1)
+            Y = U (1) / D (-1)
+            Z = R (1) / L (-1)
+            Roll = R / L
+            Pitch = F / B
+            Yaw = R / L
+        """
+        velocity.x = velocity.x * -1
         self.unity_comms.setSubSetVel(subSetVel=velocity)
 
     def restart_sub_position(self, data) -> None:
@@ -70,8 +79,8 @@ class unityInterface:
         if response.status_code == 200:
             data = response.json()
             if isinstance(data, list) and data:
-                data = data[-1]            
-                print(data.keys())
+                data = data[-1]
+                # print(data.keys())
             if isinstance(data, dict):
                 # Convert keys to lowercase, exclude the 'datetime' and 'id' keys, and convert the remaining dictionary to a dataclass instance
                 data = {k.lower(): v for k, v in data.items() if k.lower() not in ['datetime', 'id', 's1', 's2', 's3']}
@@ -136,9 +145,6 @@ class unityInterface:
             sub_rot = self.get_submarine_rotation()
             sub_vel = self.get_submarine_velocity()
 
-            # Print the submarine's position, rotation, and velocity
-            print(f"Position: {sub_pos}, Rotation: {sub_rot}, Velocity: {sub_vel}")
-
             # Get the input data from the RL server
             input_data = self.get_data()
             if input_data:
@@ -147,6 +153,9 @@ class unityInterface:
 
             # Post the submarine's position, rotation, and velocity to the DBPackage
             self.post_data(sub_vel, sub_pos, sub_rot)
+
+            # Print the submarine's position, rotation, and velocity
+            print(f"Position: {sub_pos}, Rotation: {sub_rot}, Velocity: {sub_vel}, Inputs: {input_data}")
 
             time.sleep(0.1) # Sleep for a short duration to avoid overwhelming the server
 
