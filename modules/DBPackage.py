@@ -5,12 +5,24 @@ from datetime import datetime
 from typing import List, Dict, Any
 import argparse
 
+import logging
+import sys
+import os
+
 # Initialize Flask app and SQLAlchemy
 app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'  # Use SQLite for simplicity
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+# Suppress all Flask and Werkzeug logs
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
+# Redirect stdout and stderr
+sys.stdout = open(os.devnull, 'w')
+sys.stderr = open(os.devnull, 'w')
 
 # Inputs class to store the submarine's input data (X, Y, Z, Roll, Pitch, Yaw, Arm, S1, S2, S3)
 class Inputs(db.Model):
@@ -66,7 +78,7 @@ class Velocity(db.Model):
 # Routes for inputs data
 @app.route('/inputs', methods=['GET'])
 def get_inputs():
-    latest_input = Inputs.query.order_by(Inputs.datetime.desc()).first()
+    latest_input = Inputs.query.order_by(Inputs.id.desc()).first()
     if latest_input:
         return jsonify({
             'datetime': latest_input.datetime,
@@ -114,7 +126,7 @@ def add_input():
 # Routes for position data
 @app.route('/position', methods=['GET'])
 def get_position():
-    latest_position = Position.query.order_by(Position.datetime.desc()).first()
+    latest_position = Position.query.order_by(Position.id.desc()).first()
     if latest_position:
         return jsonify({
             'datetime': latest_position.datetime,
@@ -148,7 +160,7 @@ def add_position():
 # Routes for rotation data
 @app.route('/rotation', methods=['GET'])
 def get_rotation():
-    latest_rotation = Rotation.query.order_by(Rotation.datetime.desc()).first()
+    latest_rotation = Rotation.query.order_by(Rotation.id.desc()).first()
     if latest_rotation:
         return jsonify({
             'datetime': latest_rotation.datetime,
@@ -182,7 +194,7 @@ def add_rotation():
 # Routes for velocity data
 @app.route('/velocity', methods=['GET'])
 def get_velocity():
-    latest_velocity = Velocity.query.order_by(Velocity.datetime.desc()).first()
+    latest_velocity = Velocity.query.order_by(Velocity.id.desc()).first()
     if latest_velocity:
         return jsonify({
             'datetime': latest_velocity.datetime,
