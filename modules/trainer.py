@@ -10,8 +10,8 @@ rotation_url = "http://localhost:5000/rotation"
 velocity_url = "http://localhost:5000/velocity"
 inputs_url = "http://localhost:5000/inputs"
 
-log_dir = "ppo_logs"
-model_path = "auv_ppo_model"
+log_dir = "prequals_logs"
+model_path = " models/auv_prequals_model"
 summary_csv = "episode_summary.csv"
 train_timesteps = 100_000
 eval_episodes = 10

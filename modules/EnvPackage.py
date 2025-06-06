@@ -10,14 +10,14 @@ from datetime import datetime
 
 
 class HelperFunctions:
-    def get_updates(self, url: str):
+    def get_updates(self, url: str) -> dict:
         request = requests.get(url=url)
         if request.status_code == 201:  # expected from Unity interface
             return request.json()
         else:
             raise Exception(f"Error: {request.status_code} - {request.text}")
 
-    def set_updates(self, url: str, data: dict):
+    def set_updates(self, url: str, data: dict) -> json:
         request = requests.post(url=url, json=data)
         if request.status_code == 201:
             return request.json()

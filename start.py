@@ -10,11 +10,13 @@ def main():
     parser.add_argument('--port', type=int, default=5000, help='Port to bind to (default: 5000)')
     parser.add_argument('--start_hardware', action='store_true', help='Flag to start the hardware interface')
     parser.add_argument('--start_ai', action='store_true', help='Flag to start the AI package')
+    parser.add_argument('--train', action='store_true', help='Flag to start the training process')
     args = parser.parse_args()
 
     subprocesses = [
         ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],
         ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],
+        ['python', 'modules/trainer.py'],
         ['python', 'modules/HardwareInterface.py'],
         ['python', 'modules/Virtual_Cameras.py']
     ]
@@ -23,6 +25,8 @@ def main():
         subprocess.Popen(subprocesses[2])
     if args.start_ai:
         subprocess.Popen(subprocesses[1])
+    if args.train:
+        subprocess.Popen(subprocesses[3])
 
     subprocess.Popen(subprocesses[0])
     # subprocess.Popen(subprocesses[3])
