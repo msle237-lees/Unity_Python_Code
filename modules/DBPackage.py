@@ -96,6 +96,8 @@ def get_inputs():
     else:
         return jsonify({'message': 'No data available'}), 404
 
+from datetime import datetime
+
 @app.route('/inputs', methods=['POST'])
 def add_input():
     data = request.get_json()
@@ -103,8 +105,14 @@ def add_input():
         return jsonify({'message': 'No data provided'}), 400
 
     try:
+        # Use provided datetime if available, otherwise default to now
+        if 'datetime' in data and data['datetime']:
+            dt = datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S')
+        else:
+            dt = datetime.utcnow()  # Or use datetime.now() if you prefer local time
+
         new_input = Inputs(
-            datetime=datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S'),
+            datetime=dt,
             X=data['X'],
             Y=data['Y'],
             Z=data['Z'],
@@ -122,7 +130,7 @@ def add_input():
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': str(e)}), 400
-    
+
 # Routes for position data
 @app.route('/position', methods=['GET'])
 def get_position():
@@ -232,7 +240,7 @@ with app.app_context():
 # Configure the arguments for the Flask app
 parser = argparse.ArgumentParser(description="Flask API for Unity Interface")
 parser.add_argument("--port", type=int, default=5000, help="Port for Flask API")
-parser.add_argument("--host", type=str, default="localhost", help="Host for Flask API")
+parser.add_argument("--host", type=str, default="0.0.0.0", help="Host for Flask API")
 args = parser.parse_args()
 
 if __name__ == "__main__":
