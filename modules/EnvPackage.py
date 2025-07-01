@@ -12,10 +12,26 @@ from datetime import datetime
 class HelperFunctions:
     def get_updates(self, url: str) -> dict:
         request = requests.get(url=url)
-        if request.status_code == 201:  # expected from Unity interface
+        if request.status_code == 200:  # expected from Unity interface
             return request.json()
         else:
-            raise Exception(f"Error: {request.status_code} - {request.text}")
+            return {
+                "datetime": datetime.now().isoformat(),
+                "X": 0.0,
+                "Y": 0.0,
+                "Z": 0.0,
+                "Roll": 0.0,
+                "Pitch": 0.0,
+                "Yaw": 0.0,
+                "Vx": 0.0,
+                "Vy": 0.0,
+                "Vz": 0.0,
+                "S1": 0.0,
+                "S2": 0.0,
+                "S3": 0.0,
+                "Arm": 0.0
+            }
+            # raise Exception(f"Error: {request.status_code} - {request.text}")
 
     def set_updates(self, url: str, data: dict) -> json:
         request = requests.post(url=url, json=data)
@@ -148,9 +164,10 @@ class AUVEnv(gym.Env):
         self.logger.debug(f"Step {self.step_idx} | Reward: {self.reward:.3f} | State: {self.state}")
 
         self.step_idx += 1
-        self.done = self.step_idx >= self.max_steps
+        terminated = self.step_idx >= self.max_steps
+        truncated = False
 
-        return self._get_observation(), self.reward, self.done, self.info
+        return self._get_observation(), self.reward, terminated, truncated, self.info
 
     def _calculate_reward(self):
         current_pos = np.array([self.state.X, self.state.Y, self.state.Z])
@@ -161,6 +178,9 @@ class AUVEnv(gym.Env):
         min_dist = float('inf')
 
         for waypoint in self.expert_path:
+            if any(waypoint.get(k) is None for k in ("X", "Y", "Z", "Roll", "Pitch", "Yaw", "vel_x", "vel_y", "vel_z")):
+                continue
+
             target_pos = np.array([waypoint["X"], waypoint["Y"], waypoint["Z"]])
             dist = np.linalg.norm(current_pos - target_pos)
             if dist < min_dist:
@@ -175,21 +195,28 @@ class AUVEnv(gym.Env):
                 closest["vel_x"], closest["vel_y"], closest["vel_z"]
             ]))
         else:
-            rot_err = 0
-            vel_err = 0
+            rot_err = 0.0
+            vel_err = 0.0
 
         return -min_dist - 0.1 * rot_err - 0.05 * vel_err
 
-    def _get_current_state(self):
+    def _get_current_state(self) -> AUVState:
         pos = self.helper.get_updates(self.position_url)
         rot = self.helper.get_updates(self.rotation_url)
         vel = self.helper.get_updates(self.velocity_url)
+        inp = self.helper.get_updates(self.inputs_url)
 
         return AUVState(
-            X=pos["X"], Y=pos["Y"], Z=pos["Z"],
-            Roll=rot["Roll"], Pitch=rot["Pitch"], Yaw=rot["Yaw"],
-            S1=vel["S1"], S2=vel["S2"], S3=vel["S3"],
-            Arm=0
+            X=pos.get("X", 0.0),
+            Y=pos.get("Y", 0.0),
+            Z=pos.get("Z", 0.0),
+            Roll=rot.get("Roll", 0.0),
+            Pitch=rot.get("Pitch", 0.0),
+            Yaw=rot.get("Yaw", 0.0),
+            S1=inp.get("S1", 0.0),
+            S2=inp.get("S2", 0.0),
+            S3=inp.get("S3", 0.0),
+            Arm=inp.get("Arm", 0.0)
         )
 
     def _get_observation(self):
@@ -199,6 +226,20 @@ class AUVEnv(gym.Env):
             self.state.S1, self.state.S2, self.state.S3,
             self.state.Arm
         ], dtype=np.float32)
+
+    def get_expert_action(self) -> np.ndarray:
+        """
+        Return the expert action from the expert path at the current step index.
+        """
+        if self.step_idx < len(self.expert_path):
+            wp = self.expert_path[self.step_idx]
+            return np.array([
+                wp.get("out_X", 0.0), wp.get("out_Y", 0.0), wp.get("out_Z", 0.0),
+                wp.get("out_Roll", 0.0), wp.get("out_Pitch", 0.0), wp.get("out_Yaw", 0.0),
+                wp.get("S1", 0.0), wp.get("S2", 0.0), wp.get("S3", 0.0)
+            ], dtype=np.float32)
+        else:
+            return np.zeros(9, dtype=np.float32)
 
     def load_expert_path(self):
         path = os.path.join(os.path.dirname(__file__), "expert_paths/path_1.json")

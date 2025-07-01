@@ -10,8 +10,19 @@ def truncate_small_values(data, threshold=1e-3):
 def apply_deadzone(value, deadzone=0.1):
     return 0.0 if abs(value) < deadzone else value
 
+def map_axis(value, in_min=-1.0, in_max=1.0, out_min=-1.0, out_max=1.0):
+    """
+    Maps an axis value from input range to output range.
+    """
+    return round(((value - in_min) * (out_max - out_min) / (in_max - in_min)) + out_min, 2)
+
 class Controller:
     def __init__(self):
+        # Configurable output range for all axes
+        self.axis_min = -10.0
+        self.axis_max = 10.0
+        self.increment_step = 0.1  # Step size for S1/S2 buttons
+
         self.joystick = None
         while self.joystick is None:
             try:
@@ -71,20 +82,22 @@ class Controller:
         self.output_data["Arm"] = float(buttons[config["button"]["Arm"]["button"]])
 
         if self.output_data["Arm"] == 1.0:
-            self.output_data["X"] = apply_deadzone(axes[config["axis"]["X"]])
-            self.output_data["Y"] = apply_deadzone(axes[config["axis"]["Y"]])
-            self.output_data["Z"] = apply_deadzone(axes[config["axis"]["Z"]])
-            self.output_data["Yaw"] = apply_deadzone(axes[config["axis"]["Yaw"]])
-            self.output_data["S3"] = apply_deadzone(axes[config["axis"]["S3"]])
+            # Apply deadzone and mapping to all axes
+            self.output_data["X"] = map_axis(apply_deadzone(axes[config["axis"]["X"]]), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["Y"] = map_axis(apply_deadzone(axes[config["axis"]["Y"]]), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["Z"] = map_axis(apply_deadzone(axes[config["axis"]["Z"]]), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["Yaw"] = map_axis(apply_deadzone(axes[config["axis"]["Yaw"]]), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["S3"] = map_axis(apply_deadzone(axes[config["axis"]["S3"]]), -1.0, 1.0, self.axis_min, self.axis_max)
 
+            # Adjust S1 and S2 via button step
             if buttons[config["button"]["S1_Increase"]["button"]]:
-                self.output_data["S1"] = min(self.output_data["S1"] + 0.1, 1.0)
+                self.output_data["S1"] = min(self.output_data["S1"] + self.increment_step, self.axis_max)
             if buttons[config["button"]["S1_Decrease"]["button"]]:
-                self.output_data["S1"] = max(self.output_data["S1"] - 0.1, -1.0)
+                self.output_data["S1"] = max(self.output_data["S1"] - self.increment_step, self.axis_min)
             if buttons[config["button"]["S2_Increase"]["button"]]:
-                self.output_data["S2"] = min(self.output_data["S2"] + 0.1, 1.0)
+                self.output_data["S2"] = min(self.output_data["S2"] + self.increment_step, self.axis_max)
             if buttons[config["button"]["S2_Decrease"]["button"]]:
-                self.output_data["S2"] = max(self.output_data["S2"] - 0.1, -1.0)
+                self.output_data["S2"] = max(self.output_data["S2"] - self.increment_step, self.axis_min)
         else:
             self.output_data.update({
                 "X": 0.0,

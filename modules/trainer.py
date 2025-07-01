@@ -25,7 +25,7 @@ env = AUVEnv(position_url, rotation_url, velocity_url, inputs_url)
 logger = configure(folder=log_dir, format_strings=["stdout", "csv", "tensorboard"])
 
 # === Initialize PPO agent ===
-model = PPO("MlpPolicy", env, verbose=1)
+model = PPO("MlpPolicy", env, verbose=1, device="cuda")
 model.set_logger(logger)
 
 # === Train the model ===

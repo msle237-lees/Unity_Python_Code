@@ -74,7 +74,23 @@ class Velocity(db.Model):
 
     def __repr__(self):
         return f'<Velocity {self.datetime}, {self.Vx}, {self.Vy}, {self.Vz}>'
+
+class Gate(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    distance = db.Column(db.Float, nullable=False)
+    angle = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f'<Gate {self.id}, Distance: {self.distance}, Angle: {self.angle}>'
     
+class Pole(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    distance = db.Column(db.Float, nullable=False)
+    angle = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f'<Pole {self.id}, Distance: {self.distance}, Angle: {self.angle}>'
+
 # Routes for inputs data
 @app.route('/inputs', methods=['GET'])
 def get_inputs():
@@ -232,7 +248,41 @@ def add_velocity():
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': str(e)}), 400
+
+@app.route('/get_expert_path', methods=['GET'])
+def get_expert_path():
+    """
+    Returns the expert path as a list of dictionaries.
+    Each dictionary contains position, rotation, velocity, and input data.
+    """
+    expert_path = []
     
+    inputs = Inputs.query.all()
+    positions = Position.query.all()
+    rotations = Rotation.query.all()
+    velocities = Velocity.query.all()
+
+    for i in range(max(len(inputs), len(positions), len(rotations), len(velocities))):
+        step = {
+            "datetime": inputs[i].datetime if i < len(inputs) else None,
+            "X": positions[i].X if i < len(positions) else None,
+            "Y": positions[i].Y if i < len(positions) else None,
+            "Z": positions[i].Z if i < len(positions) else None,
+            "Roll": rotations[i].Roll if i < len(rotations) else None,
+            "Pitch": rotations[i].Pitch if i < len(rotations) else None,
+            "Yaw": rotations[i].Yaw if i < len(rotations) else None,
+            "Vx": velocities[i].Vx if i < len(velocities) else None,
+            "Vy": velocities[i].Vy if i < len(velocities) else None,
+            "Vz": velocities[i].Vz if i < len(velocities) else None,
+            "S1": inputs[i].S1 if i < len(inputs) else None,
+            "S2": inputs[i].S2 if i < len(inputs) else None,
+            "S3": inputs[i].S3 if i < len(inputs) else None,
+            "Arm": inputs[i].Arm if i < len(inputs) else None
+        }
+        expert_path.append(step)
+
+    return jsonify(expert_path)
+
 # Initialize the database and create tables
 with app.app_context():
     db.create_all()
