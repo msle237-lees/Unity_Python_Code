@@ -13,8 +13,8 @@ inputs_url = "http://localhost:5000/inputs"
 log_dir = "prequals_logs"
 model_path = " models/auv_prequals_model"
 summary_csv = "episode_summary.csv"
-train_timesteps = 100_000
-eval_episodes = 10
+train_timesteps = 1_000
+eval_episodes = 250
 
 os.makedirs(log_dir, exist_ok=True)
 
