@@ -23,6 +23,10 @@ def main():
         ['python', 'modules/HardwareInterface.py', '--unity_ip', args.unity_ip, '--unity_port', str(args.unity_port)],
         ['python', 'modules/Virtual_Cameras.py']
     ]
+    
+    subprocess.Popen(subprocesses[0])
+
+    time.sleep(10)
 
     if args.start_hardware:
         subprocess.Popen(subprocesses[3])
@@ -31,10 +35,17 @@ def main():
     if args.train:
         subprocess.Popen(subprocesses[2])
 
-    subprocess.Popen(subprocesses[0])
-
     while True:
-        time.sleep(1)
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print("Shutting down...")
+            for proc in subprocesses:
+                try:
+                    proc.terminate()
+                except Exception as e:
+                    print(f"Error terminating process: {e}")
+            sys.exit(0)
 
 if __name__ == "__main__":
     main()
