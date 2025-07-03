@@ -7,6 +7,8 @@ import time
 def main():
     parser = argparse.ArgumentParser(description="Run the Unity game and Flask server.")
     parser.add_argument('--ip', type=str, default='0.0.0.0', help='IP address to bind to (default: 127.0.0.1)')
+    parser.add_argument('--unity_ip', type=str, default='192.168.0.108', help='IP address for Unity communication (default: 192.168.0.108)')
+    parser.add_argument('--unity_port', type=int, default=9999, help='Port for Unity communication (default: 9999)')
     parser.add_argument('--port', type=int, default=5000, help='Port to bind to (default: 5000)')
     parser.add_argument('--output', type=str, default="expert_paths/path_1.json")
     parser.add_argument('--start_hardware', action='store_true', help='Flag to start the hardware interface')
@@ -17,8 +19,8 @@ def main():
     subprocesses = [
         ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],
         ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],
-        ['python', 'modules/trainer.py', '--host', args.ip, '--port', int(args.port), '--output', str(args.output), '--interval', float(0.1)],
-        ['python', 'modules/HardwareInterface.py'],
+        ['python', 'modules/trainer.py'],
+        ['python', 'modules/HardwareInterface.py', '--unity_ip', args.unity_ip, '--unity_port', str(args.unity_port)],
         ['python', 'modules/Virtual_Cameras.py']
     ]
 
