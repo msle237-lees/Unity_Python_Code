@@ -30,10 +30,12 @@ def main():
 
     if args.start_hardware:
         subprocess.Popen(subprocesses[3])
+        time.sleep(5)
     if args.start_ai:
         subprocess.Popen(subprocesses[1])
     if args.train:
         subprocess.Popen(subprocesses[2])
+        time.sleep(5)
 
     while True:
         try:
