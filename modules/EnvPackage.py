@@ -1,253 +1,178 @@
-from typing import Optional
-import numpy as np
-import gymnasium as gym
 from dataclasses import dataclass
+import numpy as np
+import gym
+from gym import spaces
 import requests
-import os
-import json
-import logging
-from datetime import datetime
+from typing import Tuple, Dict, Any, Optional
 
+class EnvPackage(gym.Env):
+    """
+    Gym-compatible environment wrapper for a Unity-based AUV simulation backend.
+    """
 
-class HelperFunctions:
-    def get_updates(self, url: str) -> dict:
-        request = requests.get(url=url)
-        if request.status_code == 200:  # expected from Unity interface
-            return request.json()
-        else:
-            return {
-                "datetime": datetime.now().isoformat(),
-                "X": 0.0,
-                "Y": 0.0,
-                "Z": 0.0,
-                "Roll": 0.0,
-                "Pitch": 0.0,
-                "Yaw": 0.0,
-                "Vx": 0.0,
-                "Vy": 0.0,
-                "Vz": 0.0,
-                "S1": 0.0,
-                "S2": 0.0,
-                "S3": 0.0,
-                "Arm": 0.0
-            }
-            # raise Exception(f"Error: {request.status_code} - {request.text}")
+    @dataclass
+    class SubPos:
+        x: float
+        y: float
+        z: float
 
-    def set_updates(self, url: str, data: dict) -> json:
-        request = requests.post(url=url, json=data)
-        if request.status_code == 201:
-            return request.json()
-        else:
-            raise Exception(f"Error: {request.status_code} - {request.text}")
+    @dataclass
+    class SubRot:
+        roll: float
+        pitch: float
+        yaw: float
 
+    @dataclass
+    class SubVel:
+        x: float
+        y: float
+        z: float
+        roll: float
+        pitch: float
+        yaw: float
 
-class LoggerHelper:
-    @staticmethod
-    def setup_logger(name: str, log_dir: str = "logs", log_level=logging.INFO, to_file=True) -> logging.Logger:
+    @dataclass
+    class PastSubInputs:
+        x: float
+        y: float
+        z: float
+        roll: float
+        pitch: float
+        yaw: float
+        s1: float
+        s2: float
+        s3: float
+        arm: float
+
+    @dataclass
+    class CurrentSubInputs:
+        x: float
+        y: float
+        z: float
+        roll: float
+        pitch: float
+        yaw: float
+        s1: float
+        s2: float
+        s3: float
+        arm: float
+
+    def __init__(self, dbIP: str = 'localhost', dbPort: int = 5000, unityIP: str = 'localhost', unityPort: int = 9999):
         """
-        Sets up a logger that outputs to both console and a timestamped file.
+        Initialize the AUV environment.
+
+        @param dbIP The IP address of the backend data server.
+        @param dbPort The port used for backend data.
+        @param unityIP The IP address of the Unity simulation server.
+        @param unityPort The port used by Unity.
         """
-        os.makedirs(log_dir, exist_ok=True)
-        logger = logging.getLogger(name)
-        logger.setLevel(log_level)
+        self.dbURL = f"http://{dbIP}:{dbPort}"
+        self.unityURL = f"http://{unityIP}:{unityPort}"
 
-        if logger.hasHandlers():
-            logger.handlers.clear()
+        self.posURL = f"{self.dbURL}/position"
+        self.rotURL = f"{self.dbURL}/rotation"
+        self.velURL = f"{self.dbURL}/velocity"
+        self.inputsURL = f"{self.dbURL}/inputs"
 
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-        # Console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(log_level)
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
-
-        # File handler
-        if to_file:
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            log_filename = os.path.join(log_dir, f"{name}_{timestamp}.log")
-            fh = logging.FileHandler(log_filename)
-            fh.setLevel(log_level)
-            fh.setFormatter(formatter)
-            logger.addHandler(fh)
-
-        return logger
-
-
-@dataclass
-class AUVState:
-    X: float
-    Y: float
-    Z: float
-    Roll: float
-    Pitch: float
-    Yaw: float
-    S1: float
-    S2: float
-    S3: float
-    Arm: float
-
-    def to_dict(self):
-        return {
-            "X": self.X, "Y": self.Y, "Z": self.Z,
-            "Roll": self.Roll, "Pitch": self.Pitch, "Yaw": self.Yaw,
-            "S1": self.S1, "S2": self.S2, "S3": self.S3,
-            "Arm": self.Arm
-        }
-
-    @staticmethod
-    def from_dict(data: dict):
-        return AUVState(
-            X=data["X"], Y=data["Y"], Z=data["Z"],
-            Roll=data["Roll"], Pitch=data["Pitch"], Yaw=data["Yaw"],
-            S1=data["S1"], S2=data["S2"], S3=data["S3"],
-            Arm=data["Arm"]
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(12,),
+            dtype=np.float32
         )
 
+        self.action_space = spaces.Box(
+            low=np.array([-1]*9 + [0], dtype=np.float32),
+            high=np.array([1]*9 + [1], dtype=np.float32),
+            shape=(10,),
+            dtype=np.float32
+        )
 
-class AUVEnv(gym.Env):
-    def __init__(self, position_url, rotation_url, velocity_url, inputs_url):
-        self.logger = LoggerHelper.setup_logger("AUVEnv")
-        self.logger.info("Initializing AUVEnv...")
+    def _getSubPos(self, url: str) -> SubPos:
+        response = requests.get(url)
+        response.raise_for_status()
+        return self.SubPos(**response.json())
 
-        self.position_url = position_url
-        self.rotation_url = rotation_url
-        self.velocity_url = velocity_url
-        self.inputs_url = inputs_url
+    def _getSubRot(self, url: str) -> SubRot:
+        response = requests.get(url)
+        response.raise_for_status()
+        return self.SubRot(**response.json())
 
-        self.expert_path = self.load_expert_path()
-        self.max_steps = len(self.expert_path)
-        self.step_idx = 0
+    def _getSubVel(self, url: str) -> SubVel:
+        response = requests.get(url)
+        response.raise_for_status()
+        return self.SubVel(**response.json())
 
-        self.helper = HelperFunctions()
-        self.state = AUVState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    def _setSubInputs(self, url: str, inputs: CurrentSubInputs) -> None:
+        response = requests.post(url, json=inputs.__dict__)
+        if response.status_code != 201:
+            raise Exception(f"Failed to set submarine inputs: {response.text}")
 
-        self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(9,), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
+    def reset(self) -> np.ndarray:
+        """
+        Reset the environment to the initial state.
 
-        self.reward = 0
-        self.done = False
-        self.info = {}
+        @return Observation after reset.
+        """
+        zero_input = self.CurrentSubInputs(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        self._setSubInputs(self.inputsURL, zero_input)
 
-        self.logger.info("AUVEnv initialized.")
+        pos = self._getSubPos(self.posURL)
+        rot = self._getSubRot(self.rotURL)
+        vel = self._getSubVel(self.velURL)
 
-    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
-        super().reset(seed=seed)
-        self.logger.info("Environment reset.")
-        self.done = False
-        self.step_idx = 0
-        self.state = self._get_current_state()
-        return self._get_observation(), self.info
+        return np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
 
-    def step(self, action):
-        action = np.clip(action, -1.0, 1.0)
+    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
+        """
+        Execute one step in the environment.
 
-        command = {
-            "X": float(action[0]),
-            "Y": float(action[1]),
-            "Z": float(action[2]),
-            "Roll": float(action[3]),
-            "Pitch": float(action[4]),
-            "Yaw": float(action[5]),
-            "S1": float(action[6]),
-            "S2": float(action[7]),
-            "S3": float(action[8]),
-            "Arm": 0
-        }
+        @param action The control input vector (10-dimensional).
+        @return Tuple containing: observation, reward, terminated, truncated, info
+        """
+        inputs = self.CurrentSubInputs(*action)
+        self._setSubInputs(self.inputsURL, inputs)
 
-        self.logger.debug(f"Sending action: {command}")
-        self.helper.set_updates(self.inputs_url, command)
+        pos = self._getSubPos(self.posURL)
+        rot = self._getSubRot(self.rotURL)
+        vel = self._getSubVel(self.velURL)
 
-        self.state = self._get_current_state()
-        self.reward = self._calculate_reward()
+        observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
 
-        self.logger.debug(f"Step {self.step_idx} | Reward: {self.reward:.3f} | State: {self.state}")
-
-        self.step_idx += 1
-        terminated = self.step_idx >= self.max_steps
+        # Placeholder reward/termination logic
+        reward = 0.0
+        terminated = False
         truncated = False
+        info = {}
 
-        return self._get_observation(), self.reward, terminated, truncated, self.info
+        return observation, reward, terminated, truncated, info
 
-    def _calculate_reward(self):
-        current_pos = np.array([self.state.X, self.state.Y, self.state.Z])
-        current_rot = np.array([self.state.Roll, self.state.Pitch, self.state.Yaw])
-        current_vel = np.array([self.state.S1, self.state.S2, self.state.S3])
-
-        closest = None
-        min_dist = float('inf')
-
-        for waypoint in self.expert_path:
-            if any(waypoint.get(k) is None for k in ("X", "Y", "Z", "Roll", "Pitch", "Yaw", "vel_x", "vel_y", "vel_z")):
-                continue
-
-            target_pos = np.array([waypoint["X"], waypoint["Y"], waypoint["Z"]])
-            dist = np.linalg.norm(current_pos - target_pos)
-            if dist < min_dist:
-                min_dist = dist
-                closest = waypoint
-
-        if closest:
-            rot_err = np.linalg.norm(current_rot - np.array([
-                closest["Roll"], closest["Pitch"], closest["Yaw"]
-            ]))
-            vel_err = np.linalg.norm(current_vel - np.array([
-                closest["vel_x"], closest["vel_y"], closest["vel_z"]
-            ]))
-        else:
-            rot_err = 0.0
-            vel_err = 0.0
-
-        return -min_dist - 0.1 * rot_err - 0.05 * vel_err
-
-    def _get_current_state(self) -> AUVState:
-        pos = self.helper.get_updates(self.position_url)
-        rot = self.helper.get_updates(self.rotation_url)
-        vel = self.helper.get_updates(self.velocity_url)
-        inp = self.helper.get_updates(self.inputs_url)
-
-        return AUVState(
-            X=pos.get("X", 0.0),
-            Y=pos.get("Y", 0.0),
-            Z=pos.get("Z", 0.0),
-            Roll=rot.get("Roll", 0.0),
-            Pitch=rot.get("Pitch", 0.0),
-            Yaw=rot.get("Yaw", 0.0),
-            S1=inp.get("S1", 0.0),
-            S2=inp.get("S2", 0.0),
-            S3=inp.get("S3", 0.0),
-            Arm=inp.get("Arm", 0.0)
-        )
-
-    def _get_observation(self):
-        return np.array([
-            self.state.X, self.state.Y, self.state.Z,
-            self.state.Roll, self.state.Pitch, self.state.Yaw,
-            self.state.S1, self.state.S2, self.state.S3,
-            self.state.Arm
-        ], dtype=np.float32)
-
-    def get_expert_action(self) -> np.ndarray:
+    def getObservation(self, pos: SubPos, rot: SubRot, vel: SubVel) -> list:
         """
-        Return the expert action from the expert path at the current step index.
-        """
-        if self.step_idx < len(self.expert_path):
-            wp = self.expert_path[self.step_idx]
-            return np.array([
-                wp.get("out_X", 0.0), wp.get("out_Y", 0.0), wp.get("out_Z", 0.0),
-                wp.get("out_Roll", 0.0), wp.get("out_Pitch", 0.0), wp.get("out_Yaw", 0.0),
-                wp.get("S1", 0.0), wp.get("S2", 0.0), wp.get("S3", 0.0)
-            ], dtype=np.float32)
-        else:
-            return np.zeros(9, dtype=np.float32)
+        Convert submarine position, rotation, and velocity into a single observation list.
 
-    def load_expert_path(self):
-        path = os.path.join(os.path.dirname(__file__), "expert_paths/path_1.json")
-        if os.path.exists(path):
-            with open(path, "r") as f:
-                data = json.load(f)
-                self.logger.info(f"Loaded expert path with {len(data)} waypoints.")
-                return data
-        else:
-            self.logger.error(f"Expert path file not found: {path}")
-            raise FileNotFoundError(f"Expert path file not found: {path}")
+        @param pos SubPos dataclass
+        @param rot SubRot dataclass
+        @param vel SubVel dataclass
+        @return List of 12 float values
+        """
+        return [
+            pos.x, pos.y, pos.z,
+            rot.roll, rot.pitch, rot.yaw,
+            vel.x, vel.y, vel.z,
+            vel.roll, vel.pitch, vel.yaw
+        ]
+
+    def close(self) -> None:
+        """
+        Cleanup resources (stub).
+        """
+        pass
+
+    def seed(self, seed: Optional[int] = None) -> None:
+        """
+        Set the seed for the environment RNG.
+
+        @param seed Random seed.
+        """
+        np.random.seed(seed)
