@@ -161,7 +161,7 @@ class unityInterface:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Unity Interface")
-    parser.add_argument("--unity_ip", type=str, default="192.168.0.108", help="IP address for Unity communication")
+    parser.add_argument("--unity_ip", type=str, default="192.168.0.112", help="IP address for Unity communication")
     parser.add_argument("--unity_port", type=int, default=9999, help="Port for Unity communication")
     parser.add_argument("--inputs_url", type=str, default="localhost", help="URL for RL server")
     parser.add_argument("--inputs_port", type=int, default=5000, help="Port for RL server")
