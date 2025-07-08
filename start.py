@@ -6,8 +6,8 @@ import time
 
 def main():
     parser = argparse.ArgumentParser(description="Run the Unity game and Flask server.")
-    parser.add_argument('--ip', type=str, default='0.0.0.0', help='IP address to bind to (default: 127.0.0.1)')
-    parser.add_argument('--unity_ip', type=str, default='10.0.0.165', help='IP address for Unity communication (default: 10.0.0.165)')
+    parser.add_argument('--ip', type=str, default='0.0.0.0', help='IP address to bind to (default: 0.0.0.0)')
+    parser.add_argument('--unity_ip', type=str, default='localhost', help='IP address for Unity communication (default: localhost)')
     parser.add_argument('--unity_port', type=int, default=9999, help='Port for Unity communication (default: 9999)')
     parser.add_argument('--port', type=int, default=5000, help='Port to bind to (default: 5000)')
     parser.add_argument('--output', type=str, default="expert_paths/path_1.json")

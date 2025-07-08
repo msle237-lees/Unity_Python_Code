@@ -29,7 +29,7 @@ class SubVel:
 
 
 class unityInterface:
-    def __init__(self, unity_port: str = 9999, inputs_url: str = '10.0.0.165', inputs_port: int = 9999) -> None:
+    def __init__(self, unity_port: str = 9999, inputs_url: str = '10.0.0.43', inputs_port: int = 9999) -> None:
         self.unity_comms = UnityComms(port=unity_port)
         self.url = f'http://{inputs_url}:{inputs_port}/inputs'
         self.pos_url = f'http://{inputs_url}:{inputs_port}/position'
@@ -161,9 +161,9 @@ class unityInterface:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Unity Interface")
-    parser.add_argument("--unity_ip", type=str, default="10.0.0.165", help="IP address for Unity communication")
+    parser.add_argument("--unity_ip", type=str, default="localhost", help="IP address for Unity communication")
     parser.add_argument("--unity_port", type=int, default=9999, help="Port for Unity communication")
-    parser.add_argument("--inputs_url", type=str, default="localhost", help="URL for RL server")
+    parser.add_argument("--inputs_url", type=str, default="10.0.0.43", help="URL for RL server")
     parser.add_argument("--inputs_port", type=int, default=5000, help="Port for RL server")
     args = parser.parse_args()
 
