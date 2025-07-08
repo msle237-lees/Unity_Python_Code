@@ -29,7 +29,7 @@ class SubVel:
 
 
 class unityInterface:
-    def __init__(self, unity_port: str = 9999, inputs_url: str = '127.0.0.1', inputs_port: int = 9999) -> None:
+    def __init__(self, unity_port: str = 9999, inputs_url: str = '10.0.0.165', inputs_port: int = 9999) -> None:
         self.unity_comms = UnityComms(port=unity_port)
         self.url = f'http://{inputs_url}:{inputs_port}/inputs'
         self.pos_url = f'http://{inputs_url}:{inputs_port}/position'
