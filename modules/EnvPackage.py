@@ -108,20 +108,31 @@ class EnvPackage(gym.Env):
         if response.status_code != 201:
             raise Exception(f"Failed to set submarine inputs: {response.text}")
 
-    def reset(self) -> np.ndarray:
-        """
-        Reset the environment to the initial state.
+        def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
+            """
+            Reset the environment to the initial state.
 
-        @return Observation after reset.
-        """
-        zero_input = self.CurrentSubInputs(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        self._setSubInputs(self.inputsURL, zero_input)
+            @param seed Random seed for reproducibility.
+            @param options Additional reset options (not used).
+            @return A tuple (observation, info)
+            """
+            super().reset(seed=seed)  # Set random seed
+            if seed is not None:
+                self.seed(seed)
 
-        pos = self._getSubPos(self.posURL)
-        rot = self._getSubRot(self.rotURL)
-        vel = self._getSubVel(self.velURL)
+            # Reset inputs to zero
+            zero_input = self.CurrentSubInputs(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+            self._setSubInputs(self.inputsURL, zero_input)
 
-        return np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
+            # Get initial state
+            pos = self._getSubPos(self.posURL)
+            rot = self._getSubRot(self.rotURL)
+            vel = self._getSubVel(self.velURL)
+
+            observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
+            info = {}
+
+            return observation, info
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """
