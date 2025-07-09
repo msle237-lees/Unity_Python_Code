@@ -91,20 +91,26 @@ class EnvPackage(gym.Env):
     def _getSubPos(self, url: str) -> SubPos:
         response = requests.get(url)
         response.raise_for_status()
-        data = {k.lower(): v for k, v in response.json().items()}  # Normalize keys
-        return self.SubPos(**data)
+        data = {k.lower(): v for k, v in response.json().items()}
+        valid_keys = {"x", "y", "z"}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return self.SubPos(**filtered_data)
 
     def _getSubRot(self, url: str) -> SubRot:
         response = requests.get(url)
         response.raise_for_status()
         data = {k.lower(): v for k, v in response.json().items()}
-        return self.SubRot(**data)
+        valid_keys = {"roll", "pitch", "yaw"}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return self.SubRot(**filtered_data)
 
     def _getSubVel(self, url: str) -> SubVel:
         response = requests.get(url)
         response.raise_for_status()
         data = {k.lower(): v for k, v in response.json().items()}
-        return self.SubVel(**data)
+        valid_keys = {"x", "y", "z", "roll", "pitch", "yaw"}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return self.SubVel(**filtered_data)
     
     def _setSubInputs(self, url: str, inputs: CurrentSubInputs) -> None:
         """
