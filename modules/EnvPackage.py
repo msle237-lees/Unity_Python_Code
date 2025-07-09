@@ -61,7 +61,7 @@ class EnvPackage(gym.Env):
         arm: float
 
     def __init__(self, dbIP: str = 'localhost', dbPort: int = 5000, unityIP: str = 'localhost', unityPort: int = 9999,
-                 expert_path_file: str = os.path.join(os.path.dirname(__file__), "expert_paths/expert_path.json")):
+                 expert_path_file: str = os.path.join(os.path.dirname(__file__), "expert_paths/path_1.json")):
         """
         Initialize the AUV environment.
 
