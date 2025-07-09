@@ -150,10 +150,18 @@ class EnvPackage(gym.Env):
         return observation, {}
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
+        """
+        Execute one step in the environment.
+
+        @param action The control input vector (10-dimensional), values normalized in [-1, 1].
+        @return Tuple containing: observation, reward, terminated, truncated, info
+        """
+        # Rescale 'arm' from [-1, 1] to [0, 1]
         rescaled_arm = (action[9] + 1) / 2
         inputs = self.CurrentSubInputs(*action[:9], rescaled_arm)
         self._setSubInputs(self.inputsURL, inputs)
 
+        # Get updated state from Unity
         pos = self._getSubPos(self.posURL)
         rot = self._getSubRot(self.rotURL)
         vel = self._getSubVel(self.velURL)
@@ -165,17 +173,19 @@ class EnvPackage(gym.Env):
             expert = self.expert_path[self.step_index]
             expert_pos = np.array([expert["X"], expert["Y"], expert["Z"]])
         else:
-            expert_pos = np.array([pos.x, pos.y, pos.z])  # No reward after expert ends
+            expert_pos = np.array([pos.x, pos.y, pos.z])  # fallback: no reward guidance
 
         current_pos = np.array([pos.x, pos.y, pos.z])
         distance = np.linalg.norm(current_pos - expert_pos)
 
+        # Reward: negative distance to expert
         reward = -distance
         if distance < 0.25:
-            reward += 1.0
+            reward += 1.0  # bonus for being close
 
-        terminated = distance > 10.0
-        truncated = self.step_index >= len(self.expert_path) - 1
+        # Episode end conditions
+        terminated = bool(distance > 10.0)  # off-course
+        truncated = bool(self.step_index >= len(self.expert_path) - 1)  # end of demo
 
         self.step_index += 1
 
