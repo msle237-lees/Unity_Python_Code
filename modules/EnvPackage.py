@@ -102,6 +102,11 @@ class EnvPackage(gym.Env):
         response = requests.get(url)
         response.raise_for_status()
         return self.SubVel(**response.json())
+    
+    def _setSubInputs(self, url: str, inputs: CurrentSubInputs) -> None:
+        response = requests.post(url, json=inputs.__dict__)
+        if response.status_code != 201:
+            raise Exception(f"Failed to set submarine inputs: {response.text}")
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
