@@ -80,8 +80,8 @@ class EnvPackage(gym.Env):
         self.inputsURL = f"{self.dbURL}/inputs"
 
         self.observation_space = spaces.Box(
-            low=-1.0,
-            high=1.0,
+            low=-2.0,
+            high=2.0,
             shape=(12,),
             dtype=np.float32
         )
