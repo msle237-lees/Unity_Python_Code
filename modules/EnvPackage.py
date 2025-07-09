@@ -126,8 +126,8 @@ class EnvPackage(gym.Env):
         @param url The target endpoint URL.
         @param inputs The current control inputs to send.
         """
-        # Capitalize keys
-        payload = {k.capitalize(): v for k, v in inputs.__dict__.items()}
+        # Capitalize keys and cast values to native float
+        payload = {k.capitalize(): float(v) for k, v in inputs.__dict__.items()}
         
         response = requests.post(url, json=payload)
         if response.status_code != 201:
