@@ -8,7 +8,7 @@ import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.vec_env import DummyVecEnv
-from modules.EnvPackage import EnvPackage  # Adjust if in a different module
+from EnvPackage import EnvPackage  # Adjust if in a different module
 from datetime import datetime
 
 
