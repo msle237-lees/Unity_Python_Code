@@ -22,10 +22,9 @@ class CustomMLPPolicy(ActorCriticPolicy):
         super().__init__(
             *args,
             **kwargs,
-            net_arch=[dict(pi=[512, 256, 128], vf=[512, 256, 128])],
+            net_arch=dict(pi=[512, 256, 128], vf=[512, 256, 128]),
             activation_fn=torch.nn.ReLU
         )
-
 
 def make_env():
     """

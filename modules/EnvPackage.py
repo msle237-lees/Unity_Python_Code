@@ -82,8 +82,8 @@ class EnvPackage(gym.Env):
         )
 
         self.action_space = spaces.Box(
-            low=np.array([-1]*9 + [0], dtype=np.float32),
-            high=np.array([1]*9 + [1], dtype=np.float32),
+            low=-1.0,
+            high=1.0,
             shape=(10,),
             dtype=np.float32
         )
@@ -164,7 +164,9 @@ class EnvPackage(gym.Env):
         @param action The control input vector (10-dimensional).
         @return Tuple containing: observation, reward, terminated, truncated, info
         """
-        inputs = self.CurrentSubInputs(*action)
+        rescaled_arm = (action[9] + 1) / 2  # maps -1→0, 1→1
+        inputs = self.CurrentSubInputs(*action[:9], rescaled_arm)
+
         self._setSubInputs(self.inputsURL, inputs)
 
         pos = self._getSubPos(self.posURL)
