@@ -104,7 +104,16 @@ class EnvPackage(gym.Env):
         return self.SubVel(**response.json())
     
     def _setSubInputs(self, url: str, inputs: CurrentSubInputs) -> None:
-        response = requests.post(url, json=inputs.__dict__)
+        """
+        Send control inputs to the simulation backend via HTTP POST.
+
+        @param url The target endpoint URL.
+        @param inputs The current control inputs to send.
+        """
+        # Capitalize keys
+        payload = {k.capitalize(): v for k, v in inputs.__dict__.items()}
+        
+        response = requests.post(url, json=payload)
         if response.status_code != 201:
             raise Exception(f"Failed to set submarine inputs: {response.text}")
 
