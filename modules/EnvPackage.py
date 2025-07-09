@@ -4,6 +4,9 @@ import gymnasium as gym
 from gymnasium import spaces
 import requests
 from typing import Tuple, Dict, Any, Optional
+import json
+import os
+
 
 class EnvPackage(gym.Env):
     """
@@ -57,7 +60,8 @@ class EnvPackage(gym.Env):
         s3: float
         arm: float
 
-    def __init__(self, dbIP: str = 'localhost', dbPort: int = 5000, unityIP: str = 'localhost', unityPort: int = 9999):
+    def __init__(self, dbIP: str = 'localhost', dbPort: int = 5000, unityIP: str = 'localhost', unityPort: int = 9999,
+                 expert_path_file: str = "expert_path.json"):
         """
         Initialize the AUV environment.
 
@@ -65,6 +69,7 @@ class EnvPackage(gym.Env):
         @param dbPort The port used for backend data.
         @param unityIP The IP address of the Unity simulation server.
         @param unityPort The port used by Unity.
+        @param expert_path_file Path to JSON file with expert trajectory
         """
         self.dbURL = f"http://{dbIP}:{dbPort}"
         self.unityURL = f"http://{unityIP}:{unityPort}"
@@ -75,8 +80,8 @@ class EnvPackage(gym.Env):
         self.inputsURL = f"{self.dbURL}/inputs"
 
         self.observation_space = spaces.Box(
-            low=-np.inf,
-            high=np.inf,
+            low=-1.0,
+            high=1.0,
             shape=(12,),
             dtype=np.float32
         )
@@ -87,6 +92,14 @@ class EnvPackage(gym.Env):
             shape=(10,),
             dtype=np.float32
         )
+
+        # Load expert path
+        if os.path.exists(expert_path_file):
+            with open(expert_path_file, "r") as f:
+                self.expert_path = json.load(f)
+        else:
+            raise FileNotFoundError(f"Expert path file not found: {expert_path_file}")
+        self.step_index = 0
 
     def _getSubPos(self, url: str) -> SubPos:
         response = requests.get(url)
@@ -107,43 +120,23 @@ class EnvPackage(gym.Env):
     def _getSubVel(self, url: str) -> SubVel:
         response = requests.get(url)
         response.raise_for_status()
-        raw_data = response.json()
-        data = {k.lower(): v for k, v in raw_data.items()}
-        
-        valid_keys = {"x", "y", "z", "roll", "pitch", "yaw"}
-        filtered_data = {k: data.get(k, 0.0) for k in valid_keys}
-
-        missing = valid_keys - filtered_data.keys()
-        if missing:
-            print(f"[WARN] Missing keys in velocity response: {missing}. Defaulting to 0.0")
-
+        data = {k.lower(): v for k, v in response.json().items()}
+        keys = {"x", "y", "z", "roll", "pitch", "yaw"}
+        filtered_data = {k: data.get(k, 0.0) for k in keys}
         return self.SubVel(**filtered_data)
-    
-    def _setSubInputs(self, url: str, inputs: CurrentSubInputs) -> None:
-        """
-        Send control inputs to the simulation backend via HTTP POST.
 
-        @param url The target endpoint URL.
-        @param inputs The current control inputs to send.
-        """
-        # Capitalize keys and cast values to native float
+    def _setSubInputs(self, url: str, inputs: CurrentSubInputs) -> None:
         payload = {k.capitalize(): float(v) for k, v in inputs.__dict__.items()}
-        
         response = requests.post(url, json=payload)
         if response.status_code != 201:
             raise Exception(f"Failed to set submarine inputs: {response.text}")
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
-        """
-        Reset the environment to the initial state.
-
-        @param seed Random seed for reproducibility.
-        @param options Additional reset options (unused).
-        @return A tuple of (observation, info) as required by Gymnasium.
-        """
         super().reset(seed=seed)
         if seed is not None:
             self.seed(seed)
+
+        self.step_index = 0
 
         zero_input = self.CurrentSubInputs(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         self._setSubInputs(self.inputsURL, zero_input)
@@ -153,20 +146,12 @@ class EnvPackage(gym.Env):
         vel = self._getSubVel(self.velURL)
 
         observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
-        
-        return observation, {}  # ✅ Return a tuple (obs, info)
 
+        return observation, {}
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
-        """
-        Execute one step in the environment.
-
-        @param action The control input vector (10-dimensional).
-        @return Tuple containing: observation, reward, terminated, truncated, info
-        """
-        rescaled_arm = (action[9] + 1) / 2  # maps -1→0, 1→1
+        rescaled_arm = (action[9] + 1) / 2
         inputs = self.CurrentSubInputs(*action[:9], rescaled_arm)
-
         self._setSubInputs(self.inputsURL, inputs)
 
         pos = self._getSubPos(self.posURL)
@@ -175,40 +160,39 @@ class EnvPackage(gym.Env):
 
         observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
 
-        # Placeholder reward/termination logic
-        reward = 0.0
-        terminated = False
-        truncated = False
-        info = {}
+        # --- Expert imitation reward logic ---
+        if self.step_index < len(self.expert_path):
+            expert = self.expert_path[self.step_index]
+            expert_pos = np.array([expert["X"], expert["Y"], expert["Z"]])
+        else:
+            expert_pos = np.array([pos.x, pos.y, pos.z])  # No reward after expert ends
+
+        current_pos = np.array([pos.x, pos.y, pos.z])
+        distance = np.linalg.norm(current_pos - expert_pos)
+
+        reward = -distance
+        if distance < 0.25:
+            reward += 1.0
+
+        terminated = distance > 10.0
+        truncated = self.step_index >= len(self.expert_path) - 1
+
+        self.step_index += 1
+
+        info = {"distance_to_expert": distance}
 
         return observation, reward, terminated, truncated, info
 
     def getObservation(self, pos: SubPos, rot: SubRot, vel: SubVel) -> list:
-        """
-        Convert submarine position, rotation, and velocity into a single observation list.
-
-        @param pos SubPos dataclass
-        @param rot SubRot dataclass
-        @param vel SubVel dataclass
-        @return List of 12 float values
-        """
         return [
-            pos.x, pos.y, pos.z,
-            rot.roll, rot.pitch, rot.yaw,
-            vel.x, vel.y, vel.z,
-            vel.roll, vel.pitch, vel.yaw
+            pos.x / 100.0, pos.y / 100.0, pos.z / 100.0,
+            rot.roll / 180.0, rot.pitch / 180.0, rot.yaw / 180.0,
+            vel.x / 10.0, vel.y / 10.0, vel.z / 10.0,
+            vel.roll / 180.0, vel.pitch / 180.0, vel.yaw / 180.0
         ]
 
     def close(self) -> None:
-        """
-        Cleanup resources (stub).
-        """
         pass
 
     def seed(self, seed: Optional[int] = None) -> None:
-        """
-        Set the seed for the environment RNG.
-
-        @param seed Random seed.
-        """
         np.random.seed(seed)
