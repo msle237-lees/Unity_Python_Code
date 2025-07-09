@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import requests
 from typing import Tuple, Dict, Any, Optional
 
