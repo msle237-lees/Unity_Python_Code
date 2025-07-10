@@ -59,7 +59,7 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
                 "observation": obs_list,
                 "action": action_list,
                 "reward": float(reward[0]),
-                "terminated": bool(terminated[0]),
+                "terminated": terminated,
                 "truncated": bool(truncated[0])
             })
 
