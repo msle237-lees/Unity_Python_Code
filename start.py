@@ -18,20 +18,20 @@ def main():
     args = parser.parse_args()
 
     subprocesses = [
-        ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],
-        ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],
-        ['python', 'modules/trainer.py'],
-        ['python', 'modules/EvalPackage.py'],
-        ['python', 'modules/HardwareInterface.py', '--unity_ip', args.unity_ip, '--unity_port', str(args.unity_port)    ],
-        ['python', 'modules/Virtual_Cameras.py']
+        ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],           # 0
+        ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],          # 1
+        ['python', 'modules/trainer.py'],                                                          # 2
+        ['python', 'modules/EvalPackage.py'],                                                      # 3
+        ['python', 'modules/HardwareInterface.py', '--unity_ip', args.unity_ip, '--unity_port', str(args.unity_port), '--inputs_url', args.ip, '--inputs_port', str(args.port)],  # 4
+        ['python', 'modules/Virtual_Cameras.py']                                                   # 5
     ]
-    
-    subprocess.Popen(subprocesses[0])
 
+    # Always start the database first
+    subprocess.Popen(subprocesses[0])
     time.sleep(10)
 
     if args.start_hardware:
-        subprocess.Popen(subprocesses[3])
+        subprocess.Popen(subprocesses[4])  # Fixed: was 3, should be 4
         time.sleep(5)
     if args.start_ai:
         subprocess.Popen(subprocesses[1])
