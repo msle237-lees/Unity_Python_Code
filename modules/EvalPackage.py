@@ -32,13 +32,13 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
     print(f"[INFO] Using device: {device.upper()}")
 
     env = make_env()
-    model = PPO.load(model_path, env=env, device=device)
-    model.set_env(env)
+    model = PPO.load(model_path, device=device)
     print(f"[INFO] Loaded model from: {model_path}")
 
     all_logs = []
 
     for ep in range(episodes):
+        print(f"[DEBUG] About to reset environment for episode {ep + 1}")
         obs, _ = env.reset()
         episode_log = []
         print(f"[DEBUG] Episode {ep + 1} starting with observation: {obs[:3]}")  # Show position

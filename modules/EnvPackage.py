@@ -6,6 +6,7 @@ import requests
 from typing import Tuple, Dict, Any, Optional
 import json
 import os
+from peaceful_pie.unity_comms import UnityComms
 
 
 class EnvPackage(gym.Env):
@@ -132,18 +133,40 @@ class EnvPackage(gym.Env):
             raise Exception(f"Failed to set submarine inputs: {response.text}")
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
+        print("[DEBUG] Environment reset() called")
         super().reset(seed=seed)
         if seed is not None:
             self.seed(seed)
 
         self.step_index = 0
 
-        zero_input = self.CurrentSubInputs(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        self._setSubInputs(self.inputsURL, zero_input)
+        # Send reset command (arm = 0 triggers Unity reset)
+        reset_input = self.CurrentSubInputs(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        self._setSubInputs(self.inputsURL, reset_input)
+
+        # Wait for Unity to complete the reset
+        import time
+        time.sleep(0.5)  # Give Unity time to reset position
+
+        # Set arm = 1 to arm the submarine after reset
+        armed_input = self.CurrentSubInputs(0, 0, 0, 0, 0, 0, 0, 0, 0, 1)
+        self._setSubInputs(self.inputsURL, armed_input)
+
+        # Small delay to ensure the armed state is processed
+        time.sleep(0.1)
 
         pos = self._getSubPos(self.posURL)
         rot = self._getSubRot(self.rotURL)
         vel = self._getSubVel(self.velURL)
+
+        # Debug: Print reset position
+        print(f"[DEBUG] Reset complete - Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f})")
+        if len(self.expert_path) > 0:
+            expert_start = self.expert_path[0]
+            expert_pos = np.array([expert_start["X"], expert_start["Y"], expert_start["Z"]])
+            current_pos = np.array([pos.x, pos.y, pos.z])
+            initial_distance = np.linalg.norm(current_pos - expert_pos)
+            print(f"[DEBUG] Initial distance to expert: {initial_distance:.2f}")
 
         observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
 
@@ -184,12 +207,21 @@ class EnvPackage(gym.Env):
             reward += 1.0  # bonus for being close
 
         # Episode end conditions
-        terminated = bool(distance > 10.0)  # off-course
+        # Increase distance threshold or make it adaptive based on expert path scale
+        max_distance = max(100.0, np.linalg.norm(expert_pos) * 0.8)  # more forgiving adaptive threshold
+        terminated = bool(distance > max_distance)  # off-course
         truncated = bool(self.step_index >= len(self.expert_path) - 1)  # end of demo
+
+        # Debug: Print step information for first few steps
+        if self.step_index < 5:
+            print(f"[DEBUG] Step {self.step_index}: pos=({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), "
+                  f"expert=({expert_pos[0]:.2f}, {expert_pos[1]:.2f}, {expert_pos[2]:.2f}), "
+                  f"distance={distance:.2f}, max_dist={max_distance:.2f}, "
+                  f"terminated={terminated}, truncated={truncated}")
 
         self.step_index += 1
 
-        info = {"distance_to_expert": distance}
+        info = {"distance_to_expert": distance, "max_distance": max_distance}
 
         return observation, reward, terminated, truncated, info
 
