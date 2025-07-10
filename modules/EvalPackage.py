@@ -41,6 +41,7 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
     for ep in range(episodes):
         obs, _ = env.reset()
         episode_log = []
+        print(f"[DEBUG] Episode {ep + 1} starting with observation: {obs[:3]}")  # Show position
 
         for step in range(steps_per_episode):
             action, _ = model.predict(obs, deterministic=True)
@@ -58,6 +59,9 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
 
             if terminated or truncated:
                 print(f"[INFO] Episode {ep + 1} ended early at step {step}")
+                print(f"[DEBUG] Termination reason - terminated: {terminated}, truncated: {truncated}")
+                print(f"[DEBUG] Final info: {info}")
+                print(f"[DEBUG] Final reward: {reward}")
                 break
 
         all_logs.append(episode_log)
