@@ -8,14 +8,13 @@ import json
 import torch
 import numpy as np
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
-from EnvPackage import EnvPackage  # Your custom Unity environment
+from EnvPackage import EnvPackage
 from datetime import datetime
 
 
 def make_env():
     """
-    Create the wrapped environment instance.
+    Create the AUV environment instance (not vectorized).
     """
     return EnvPackage(dbIP="localhost", dbPort=5000, unityIP="localhost", unityPort=9999)
 
@@ -24,47 +23,40 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
     """
     Evaluate the PPO model and log observations/actions.
 
-    @param model_path Path to the saved model.
-    @param save_path Output JSON file to store the evaluation trace.
-    @param episodes Number of evaluation episodes to run.
-    @param steps_per_episode Number of timesteps per episode.
+    @param model_path: Path to the trained PPO model file.
+    @param save_path: Path to the output JSON log file.
+    @param episodes: Number of evaluation episodes.
+    @param steps_per_episode: Max timesteps per episode.
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[INFO] Using device: {device.upper()}")
 
-    env = DummyVecEnv([make_env])
+    env = make_env()
     model = PPO.load(model_path, env=env, device=device)
     print(f"[INFO] Loaded model from: {model_path}")
 
     all_logs = []
 
     for ep in range(episodes):
-        obs = env.reset()
+        obs, _ = env.reset()
         episode_log = []
 
         for step in range(steps_per_episode):
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
-
-            # If needed, split `done` into terminated/truncated placeholders
-            terminated = bool(done[0])
-            truncated = False  # or also bool(done[0]) if you don't distinguish
-
-            # Flatten obs to 1D list
-            obs_list = obs[0].tolist() if isinstance(obs, np.ndarray) else obs
-            action_list = action[0].tolist() if isinstance(action, np.ndarray) else action
+            obs, reward, terminated, truncated, info = env.step(action)
 
             episode_log.append({
                 "timestep": step,
-                "observation": obs_list,
-                "action": action_list,
-                "reward": float(reward[0]),
+                "observation": obs.tolist(),
+                "action": action.tolist(),
+                "reward": float(reward),
                 "terminated": terminated,
-                "truncated": truncated
+                "truncated": truncated,
+                "info": info
             })
 
             if terminated or truncated:
-                print(f"[INFO] Episode {ep+1} ended early at step {step}")
+                print(f"[INFO] Episode {ep + 1} ended early at step {step}")
                 break
 
         all_logs.append(episode_log)
@@ -76,8 +68,11 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
 
 
 if __name__ == "__main__":
-    model_file = "logs/run_20250709_135310/ppo_auv_model.zip"  # Change to your latest run
-    output_file = f"evaluation_results/eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    model_file = "logs/run_20250709_135310/ppo_auv_model.zip"  # <-- Adjust this path as needed
+    output_dir = "evaluation_results"
+    os.makedirs(output_dir, exist_ok=True)
 
-    os.makedirs("evaluation_results", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = os.path.join(output_dir, f"eval_{timestamp}.json")
+
     evaluate_model(model_file, output_file, episodes=1, steps_per_episode=1024)
