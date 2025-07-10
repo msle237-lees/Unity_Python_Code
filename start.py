@@ -14,12 +14,14 @@ def main():
     parser.add_argument('--start_hardware', action='store_true', help='Flag to start the hardware interface')
     parser.add_argument('--start_ai', action='store_true', help='Flag to start the AI package')
     parser.add_argument('--train', action='store_true', help='Flag to start the training process')
+    parser.add_argument('--evaluate', action='store_true', help='Flag to evaluate the model')
     args = parser.parse_args()
 
     subprocesses = [
         ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],
         ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],
         ['python', 'modules/trainer.py'],
+        ['python', 'modules/EvalPackage.py'],
         ['python', 'modules/HardwareInterface.py', '--unity_ip', args.unity_ip, '--unity_port', str(args.unity_port)    ],
         ['python', 'modules/Virtual_Cameras.py']
     ]
@@ -36,6 +38,9 @@ def main():
     if args.train:
         subprocess.Popen(subprocesses[2])
         time.sleep(5)
+    if args.evaluate:
+        subprocess.Popen(subprocesses[3])
+        time.sleep(5)
 
     while True:
         try:
@@ -46,7 +51,8 @@ def main():
                 try:
                     proc.terminate()
                 except Exception as e:
-                    print(f"Error terminating process: {e}")
+                    # print(f"Error terminating process: {e}")
+                    pass
             sys.exit(0)
 
 if __name__ == "__main__":
