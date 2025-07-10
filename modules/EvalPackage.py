@@ -33,6 +33,7 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
 
     env = make_env()
     model = PPO.load(model_path, env=env, device=device)
+    model.set_env(env)
     print(f"[INFO] Loaded model from: {model_path}")
 
     all_logs = []
