@@ -44,7 +44,11 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
 
         for step in range(steps_per_episode):
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
+            obs, reward, done, info = env.step(action)
+
+            # If needed, split `done` into terminated/truncated placeholders
+            terminated = bool(done[0])
+            truncated = False  # or also bool(done[0]) if you don't distinguish
 
             # Flatten obs to 1D list
             obs_list = obs[0].tolist() if isinstance(obs, np.ndarray) else obs
