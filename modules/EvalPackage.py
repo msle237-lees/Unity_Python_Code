@@ -60,7 +60,7 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
                 "action": action_list,
                 "reward": float(reward[0]),
                 "terminated": terminated,
-                "truncated": bool(truncated[0])
+                "truncated": truncated
             })
 
             if terminated[0] or truncated[0]:
