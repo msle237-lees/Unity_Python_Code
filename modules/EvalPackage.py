@@ -63,7 +63,7 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
                 "truncated": truncated
             })
 
-            if terminated[0] or truncated[0]:
+            if terminated or truncated:
                 print(f"[INFO] Episode {ep+1} ended early at step {step}")
                 break
 
