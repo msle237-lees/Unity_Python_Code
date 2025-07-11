@@ -432,7 +432,7 @@ class EnvPackage(gym.Env):
             "component_differences": component_diffs.tolist()
         }
 
-        return observation, reward, terminated, truncated, info
+        return observation, float(reward), terminated, truncated, info
 
     def getObservation(self, pos: SubPos, rot: SubRot, vel: SubVel) -> list:
         return [
