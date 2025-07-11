@@ -27,5 +27,34 @@
         },
         "hat": {
         }
+    },
+    "xbox_360": {
+        "name": "Xbox 360 Controller",
+        "axis": {
+            "X": 0,
+            "Y": 1,
+            "Z": 4,
+            "Yaw": 3,
+            "S3": 2
+        },
+        "button": {
+            "S1_Increase": {
+                "button": 5
+            },
+            "S1_Decrease": {
+                "button": 4
+            },
+            "S2_Increase": {
+                "button": 1
+            },
+            "S2_Decrease": {
+                "button": 0
+            },
+            "Arm": {
+                "button": 7
+            }
+        },
+        "hat": {
+        }
     }
 }
