@@ -28,8 +28,8 @@ def evaluate_model(model_path: str, save_path: str, episodes: int = 1, steps_per
     @param episodes: Number of evaluation episodes.
     @param steps_per_episode: Max timesteps per episode.
     """
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"[INFO] Using device: {device.upper()}")
+    device = "cpu"
+    print(f"[INFO] Using device: {device.upper()} (forced CPU mode)")
 
     env = make_env()
     model = PPO.load(model_path, device=device)

@@ -1,5 +1,5 @@
 """
-Train an AUV control policy using PPO with a custom Gym environment, utilizing GPU (CUDA) for acceleration.
+Train an AUV control policy using PPO with a custom Gym environment, running on CPU.
 Supports continuing training from existing model checkpoints.
 """
 
@@ -18,7 +18,7 @@ from EnvPackage import EnvPackage  # Adjust if in a different module
 
 class CustomMLPPolicy(ActorCriticPolicy):
     """
-    Custom MLP Policy with a larger network architecture to improve GPU utilization.
+    Custom MLP Policy with a larger network architecture for improved performance.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -67,9 +67,9 @@ def main():
     parser.add_argument("--fresh", action="store_true", help="Force fresh training (ignore existing models)")
     args = parser.parse_args()
 
-    # Check for CUDA support
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"[INFO] Using device: {device.upper()}")
+    # Force CPU usage instead of GPU
+    device = "cpu"
+    print(f"[INFO] Using device: {device.upper()} (forced CPU mode)")
 
     # Validate custom environment
     print("[INFO] Validating custom Gym environment...")

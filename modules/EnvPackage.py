@@ -87,12 +87,27 @@ class EnvPackage(gym.Env):
             dtype=np.float32
         )
 
-        self.action_space = spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=(10,),
-            dtype=np.float32
-        )
+        # Define simplified discrete action space
+        # 8 directions: Forward, Back, Left, Right, Up, Down, Yaw Right, Yaw Left
+        # 5 force levels: 0, 25, 50, 75, 100
+        # Total: 8 * 5 = 40 possible actions
+        self.num_directions = 8
+        self.num_force_levels = 5
+        self.action_space = spaces.Discrete(self.num_directions * self.num_force_levels)
+
+        # Define the mapping
+        self.directions = [
+            "Forward",    # 0: +Y movement
+            "Back",       # 1: -Y movement
+            "Left",       # 2: -X movement
+            "Right",      # 3: +X movement
+            "Up",         # 4: +Z movement
+            "Down",       # 5: -Z movement
+            "Yaw Right",  # 6: +Yaw rotation
+            "Yaw Left"    # 7: -Yaw rotation
+        ]
+
+        self.force_levels = [0, 25, 50, 75, 100]
 
         # Load expert path
         if os.path.exists(expert_path_file):
@@ -101,6 +116,117 @@ class EnvPackage(gym.Env):
         else:
             raise FileNotFoundError(f"Expert path file not found: {expert_path_file}")
         self.step_index = 0
+
+    def decode_action(self, action: int) -> Tuple[str, int]:
+        """Convert discrete action to direction and force level.
+
+        Parameters
+        ----------
+        action : int
+            Discrete action index (0-39)
+
+        Returns
+        -------
+        tuple
+            (direction_name, force_level)
+        """
+        direction_idx = action // self.num_force_levels
+        force_idx = action % self.num_force_levels
+
+        direction = self.directions[direction_idx]
+        force = self.force_levels[force_idx]
+
+        return direction, force
+
+    def action_to_continuous(self, action: int) -> np.ndarray:
+        """Convert discrete action to continuous control inputs.
+
+        Parameters
+        ----------
+        action : int
+            Discrete action index (0-39)
+
+        Returns
+        -------
+        np.ndarray
+            Continuous control vector [X, Y, Z, Roll, Pitch, Yaw, S1, S2, S3, Arm]
+        """
+        direction, force = self.decode_action(action)
+
+        # Normalize force to [-1, 1] range (100 -> 1.0, 0 -> 0.0)
+        normalized_force = force / 100.0
+
+        # Initialize all controls to zero
+        controls = np.zeros(10, dtype=np.float32)
+
+        # Map direction to control axes
+        if direction == "Forward":
+            controls[1] = normalized_force    # +Y
+        elif direction == "Back":
+            controls[1] = -normalized_force   # -Y
+        elif direction == "Left":
+            controls[0] = -normalized_force   # -X
+        elif direction == "Right":
+            controls[0] = normalized_force    # +X
+        elif direction == "Up":
+            controls[2] = normalized_force    # +Z
+        elif direction == "Down":
+            controls[2] = -normalized_force   # -Z
+        elif direction == "Yaw Right":
+            controls[5] = normalized_force    # +Yaw
+        elif direction == "Yaw Left":
+            controls[5] = -normalized_force   # -Yaw
+
+        # Always keep arm engaged
+        controls[9] = 1.0  # Arm
+
+        return controls
+
+    def continuous_to_action(self, continuous_controls: np.ndarray) -> int:
+        """Convert continuous control inputs to closest discrete action.
+
+        Parameters
+        ----------
+        continuous_controls : np.ndarray
+            Continuous control vector [X, Y, Z, Roll, Pitch, Yaw, S1, S2, S3, Arm]
+
+        Returns
+        -------
+        int
+            Closest discrete action index
+        """
+        # Find the dominant control axis
+        control_magnitudes = np.abs(continuous_controls[:6])  # X, Y, Z, Roll, Pitch, Yaw
+        max_idx = np.argmax(control_magnitudes)
+        max_value = continuous_controls[max_idx]
+
+        # Map control axis to direction
+        if max_idx == 0:  # X axis
+            direction_idx = 3 if max_value > 0 else 2  # Right or Left
+        elif max_idx == 1:  # Y axis
+            direction_idx = 0 if max_value > 0 else 1  # Forward or Back
+        elif max_idx == 2:  # Z axis
+            direction_idx = 4 if max_value > 0 else 5  # Up or Down
+        elif max_idx == 5:  # Yaw axis
+            direction_idx = 6 if max_value > 0 else 7  # Yaw Right or Yaw Left
+        else:
+            # Roll/Pitch not supported in simplified control scheme
+            direction_idx = 0  # Default to Forward
+
+        # Convert magnitude to force level
+        magnitude = abs(max_value)
+        if magnitude < 0.1:
+            force_idx = 0  # 0%
+        elif magnitude < 0.3:
+            force_idx = 1  # 25%
+        elif magnitude < 0.6:
+            force_idx = 2  # 50%
+        elif magnitude < 0.8:
+            force_idx = 3  # 75%
+        else:
+            force_idx = 4  # 100%
+
+        return direction_idx * self.num_force_levels + force_idx
 
     def _getSubPos(self, url: str) -> SubPos:
         response = requests.get(url)
@@ -172,16 +298,19 @@ class EnvPackage(gym.Env):
 
         return observation, {}
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """
         Execute one step in the environment.
 
-        @param action The control input vector (10-dimensional), values normalized in [-1, 1].
+        @param action Discrete action index (0-39) representing direction and force.
         @return Tuple containing: observation, reward, terminated, truncated, info
         """
-        # Rescale 'arm' from [-1, 1] to [0, 1]
-        rescaled_arm = (action[9] + 1) / 2
-        inputs = self.CurrentSubInputs(*action[:9], rescaled_arm)
+        # Convert discrete action to continuous control vector
+        continuous_action = self.action_to_continuous(action)
+
+        # Rescale 'arm' from [-1, 1] to [0, 1] (though it's already 1.0)
+        rescaled_arm = (continuous_action[9] + 1) / 2
+        inputs = self.CurrentSubInputs(*continuous_action[:9], rescaled_arm)
         self._setSubInputs(self.inputsURL, inputs)
 
         # Get updated state from Unity
@@ -191,37 +320,118 @@ class EnvPackage(gym.Env):
 
         observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
 
-        # --- Expert imitation reward logic ---
+        # --- Expert imitation reward logic based on discrete action comparison ---
         if self.step_index < len(self.expert_path):
-            expert = self.expert_path[self.step_index]
-            expert_pos = np.array([expert["X"], expert["Y"], expert["Z"]])
+            expert_record = self.expert_path[self.step_index]
+
+            # Get the expert's discrete action
+            expert_action = expert_record.get("discrete_action", 0)
+
+            # For backward compatibility, also get continuous inputs if available
+            if "original_inputs" in expert_record:
+                original_inputs = expert_record["original_inputs"]
+                human_inputs = np.array([
+                    original_inputs.get("X", 0.0),
+                    original_inputs.get("Y", 0.0),
+                    original_inputs.get("Z", 0.0),
+                    original_inputs.get("Roll", 0.0),
+                    original_inputs.get("Pitch", 0.0),
+                    original_inputs.get("Yaw", 0.0),
+                    original_inputs.get("S1", 0.0),
+                    original_inputs.get("S2", 0.0),
+                    original_inputs.get("S3", 0.0),
+                    original_inputs.get("Arm", 1.0)
+                ], dtype=np.float32)
+
+                # Normalize human inputs to [-1, 1] range
+                normalized_human_inputs = np.array([
+                    human_inputs[0] / 128.0,   # X
+                    human_inputs[1] / 128.0,   # Y
+                    human_inputs[2] / 128.0,   # Z
+                    human_inputs[3] / 128.0,   # Roll
+                    human_inputs[4] / 128.0,   # Pitch
+                    human_inputs[5] / 128.0,   # Yaw
+                    human_inputs[6] / 128.0,   # S1
+                    human_inputs[7] / 128.0,   # S2
+                    human_inputs[8] / 128.0,   # S3
+                    human_inputs[9] * 2.0 - 1.0  # Arm: convert [0,1] to [-1,1]
+                ], dtype=np.float32)
+
+                # Clip to valid action range
+                normalized_human_inputs = np.clip(normalized_human_inputs, -1.0, 1.0)
+            else:
+                # Convert expert discrete action to continuous for comparison
+                normalized_human_inputs = self.action_to_continuous(expert_action)
+
         else:
-            expert_pos = np.array([pos.x, pos.y, pos.z])  # fallback: no reward guidance
+            # Fallback when no expert data available
+            expert_action = 0  # Default action
+            normalized_human_inputs = np.zeros(10, dtype=np.float32)
+            normalized_human_inputs[9] = 1.0  # Keep arm engaged
 
-        current_pos = np.array([pos.x, pos.y, pos.z])
-        distance = np.linalg.norm(current_pos - expert_pos)
+        # Calculate difference between AI actions and human pilot inputs (continuous)
+        input_difference = np.linalg.norm(continuous_action - normalized_human_inputs)
 
-        # Reward: negative distance to expert
-        reward = -distance
-        if distance < 0.25:
-            reward += 1.0  # bonus for being close
+        # Individual component differences for detailed analysis
+        component_diffs = np.abs(continuous_action - normalized_human_inputs)
 
-        # Episode end conditions
-        # Increase distance threshold or make it adaptive based on expert path scale
-        max_distance = max(100.0, np.linalg.norm(expert_pos) * 0.8)  # more forgiving adaptive threshold
-        terminated = bool(distance > max_distance)  # off-course
+        # Primary reward: negative input difference (encourages matching human pilot)
+        reward = -input_difference * 5.0  # Scale factor for meaningful rewards
+
+        # Bonus rewards for close matching
+        if input_difference < 0.1:
+            reward += 10.0  # Very close match
+        elif input_difference < 0.2:
+            reward += 5.0   # Good match
+        elif input_difference < 0.5:
+            reward += 2.0   # Reasonable match
+
+        # Special bonus for matching the most important controls
+        s3_diff = component_diffs[8]  # S3 difference
+        arm_diff = component_diffs[9]  # Arm difference
+
+        if s3_diff < 0.05:  # Very close S3 match
+            reward += 3.0
+        if arm_diff < 0.05:  # Very close Arm match
+            reward += 2.0
+
+        # Primary reward for exact discrete action match
+        if action == expert_action:
+            reward += 20.0  # Big bonus for exact action match
+
+        # Secondary reward for similar actions (same direction, different force)
+        ai_direction = action // self.num_force_levels
+        expert_direction = expert_action // self.num_force_levels
+        if ai_direction == expert_direction:
+            reward += 5.0  # Bonus for correct direction
+
+        # Episode end conditions based on input divergence
+        max_input_difference = 2.0  # Allow some deviation but not too much
+        terminated = bool(input_difference > max_input_difference)
         truncated = bool(self.step_index >= len(self.expert_path) - 1)  # end of demo
 
         # Debug: Print step information for first few steps
         if self.step_index < 5:
-            print(f"[DEBUG] Step {self.step_index}: pos=({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f}), "
-                  f"expert=({expert_pos[0]:.2f}, {expert_pos[1]:.2f}, {expert_pos[2]:.2f}), "
-                  f"distance={distance:.2f}, max_dist={max_distance:.2f}, "
-                  f"terminated={terminated}, truncated={truncated}")
+            direction, force = self.decode_action(action)
+            expert_direction, expert_force = self.decode_action(expert_action)
+
+            print(f"[DEBUG] Step {self.step_index}: input_diff={input_difference:.3f}, "
+                  f"reward={reward:.2f}, terminated={terminated}, truncated={truncated}")
+            print(f"[DEBUG] AI action:     {action} -> {direction} at {force}% force")
+            print(f"[DEBUG] Expert action: {expert_action} -> {expert_direction} at {expert_force}% force")
+            print(f"[DEBUG] Action match:  {'✓' if action == expert_action else '✗'}")
+            print(f"[DEBUG] Direction match: {'✓' if ai_direction == expert_direction else '✗'}")
+            print(f"[DEBUG] Component diffs: S3={s3_diff:.3f}, Arm={arm_diff:.3f}")
 
         self.step_index += 1
 
-        info = {"distance_to_expert": distance, "max_distance": max_distance}
+        info = {
+            "input_difference": input_difference,
+            "s3_difference": s3_diff,
+            "arm_difference": arm_diff,
+            "max_input_difference": max_input_difference,
+            "component_differences": component_diffs.tolist()
+        }
 
         return observation, reward, terminated, truncated, info
 

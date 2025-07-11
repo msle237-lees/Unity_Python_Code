@@ -256,7 +256,7 @@ def get_expert_path():
     Each dictionary contains position, rotation, velocity, and input data.
     """
     expert_path = []
-    
+
     inputs = Inputs.query.all()
     positions = Position.query.all()
     rotations = Rotation.query.all()
@@ -282,6 +282,34 @@ def get_expert_path():
         expert_path.append(step)
 
     return jsonify(expert_path)
+
+
+@app.route('/get_inputs_only', methods=['GET'])
+def get_inputs_only():
+    """
+    Returns only the human pilot input data from the Inputs table.
+    Each dictionary contains the actual control inputs used by the human pilot.
+    """
+    inputs = Inputs.query.all()
+    input_data = []
+
+    for input_record in inputs:
+        step = {
+            "datetime": input_record.datetime.isoformat() if input_record.datetime else None,
+            "X": input_record.X,
+            "Y": input_record.Y,
+            "Z": input_record.Z,
+            "Roll": input_record.Roll,
+            "Pitch": input_record.Pitch,
+            "Yaw": input_record.Yaw,
+            "S1": input_record.S1,
+            "S2": input_record.S2,
+            "S3": input_record.S3,
+            "Arm": input_record.Arm
+        }
+        input_data.append(step)
+
+    return jsonify(input_data)
 
 # Initialize the database and create tables
 with app.app_context():

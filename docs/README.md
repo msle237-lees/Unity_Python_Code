@@ -247,7 +247,7 @@ cam_3: (1361, 701) to (2080, 1109)  # Bottom camera view
 ```
 
 #### modules/trainer.py
-**Purpose**: Reinforcement learning training script using Stable-Baselines3 PPO algorithm.
+**Purpose**: Reinforcement learning training script using Stable-Baselines3 PPO algorithm with checkpoint continuation support.
 
 **Features**:
 - **PPO Algorithm**: Proximal Policy Optimization for continuous control
@@ -255,6 +255,8 @@ cam_3: (1361, 701) to (2080, 1109)  # Bottom camera view
 - **GPU Support**: Automatic CUDA detection and usage
 - **Tensorboard Logging**: Training metrics and visualization
 - **Environment Validation**: Checks custom environment compatibility
+- **Model Continuation**: Automatically continues training from existing checkpoints
+- **Flexible Training**: Command-line options for custom training configurations
 
 **Training Configuration**:
 - **Policy**: Custom MLP with configurable hidden layers
@@ -263,6 +265,32 @@ cam_3: (1361, 701) to (2080, 1109)  # Bottom camera view
 - **Learning Rate**: 2.5e-4
 - **Gamma**: 0.99 (discount factor)
 - **GAE Lambda**: 0.95 (advantage estimation)
+- **Default Timesteps**: 1,000,000 (configurable)
+
+**Command Line Options**:
+```bash
+python modules/trainer.py [OPTIONS]
+
+Options:
+  --continue_from PATH   Path to existing model (default: latest model)
+  --timesteps INTEGER    Number of training timesteps (default: 1,000,000)
+  --fresh               Force fresh training, ignore existing models
+```
+
+**Usage Examples**:
+```bash
+# Continue from most recent model
+python modules/trainer.py
+
+# Continue with more timesteps
+python modules/trainer.py --timesteps 2000000
+
+# Start fresh training
+python modules/trainer.py --fresh
+
+# Continue from specific model
+python modules/trainer.py --continue_from logs/run_20250709_135310/ppo_auv_model.zip
+```
 
 ### Support Modules
 
@@ -443,12 +471,32 @@ cam_1_bottom_right = (1718, 699)
 
 2. **Train AI Model**:
    ```bash
+   # Option 1: Using start script (basic training)
    python start.py --train
+
+   # Option 2: Direct training with options
+   python modules/trainer.py --timesteps 1000000
+
+   # Option 3: Continue training from existing model
+   python modules/trainer.py --continue_from logs/run_20250709_135310/ppo_auv_model.zip --timesteps 2000000
    ```
 
-3. **Test Trained Model**:
+3. **Continue Training** (to improve model performance):
    ```bash
+   # Automatically continue from most recent model
+   python modules/trainer.py --timesteps 1000000
+
+   # Continue with specific model and more timesteps
+   python modules/trainer.py --continue_from logs/run_YYYYMMDD_HHMMSS/ppo_auv_model.zip --timesteps 2000000
+   ```
+
+4. **Test Trained Model**:
+   ```bash
+   # Test with hardware interface
    python start.py --start_hardware --start_ai
+
+   # Evaluate model performance
+   python start.py --evaluate
    ```
 
 ### Development and Testing
@@ -492,13 +540,25 @@ The system supports reinforcement learning through two main environment implemen
    - Algorithm: PPO (Proximal Policy Optimization)
    - Policy: Custom MLP with configurable architecture
    - Logging: Tensorboard integration for monitoring
+   - Checkpoint Management: Automatic model saving and loading
 
-3. **Hyperparameters**:
+3. **Training Modes**:
+   - **Fresh Training**: Start from scratch with random weights
+   - **Continued Training**: Resume from existing model checkpoint
+   - **Automatic Detection**: Finds and loads most recent model
+
+4. **Hyperparameters**:
    - Learning Rate: 2.5e-4
    - Batch Size: 512
    - Gamma: 0.99
    - GAE Lambda: 0.95
    - Entropy Coefficient: 0.01
+   - Default Timesteps: 1,000,000
+
+5. **Model Checkpoints**:
+   - Models saved in `logs/run_YYYYMMDD_HHMMSS/ppo_auv_model.zip`
+   - Tensorboard logs in same directory
+   - Continued training creates new log directory with `_continued` suffix
 
 ### Expert Demonstration System
 
@@ -508,6 +568,49 @@ The expert demonstration system allows human operators to provide training data:
 2. **Filtering**: Removes inactive periods (when Arm is not engaged)
 3. **Storage**: Saves demonstrations as JSON files
 4. **Integration**: Loads expert data into RL environment for imitation learning
+
+### Model Management and Training Best Practices
+
+#### Model Checkpoints
+- **Location**: Models are saved in `logs/run_YYYYMMDD_HHMMSS/ppo_auv_model.zip`
+- **Automatic Detection**: Training script automatically finds the most recent model
+- **Manual Selection**: Use `--continue_from` to specify a particular checkpoint
+- **Backup**: Keep important model checkpoints backed up
+
+#### Training Strategies
+
+1. **Incremental Training**:
+   ```bash
+   # Start with initial training
+   python modules/trainer.py --fresh --timesteps 1000000
+
+   # Continue training for better performance
+   python modules/trainer.py --timesteps 1000000
+
+   # Further refinement
+   python modules/trainer.py --timesteps 500000
+   ```
+
+2. **Performance Monitoring**:
+   ```bash
+   # Monitor training with Tensorboard
+   tensorboard --logdir logs/
+
+   # Evaluate model performance
+   python modules/EvalPackage.py
+   ```
+
+3. **Training Tips**:
+   - Start with shorter training sessions (500k-1M timesteps)
+   - Monitor evaluation results to track improvement
+   - Continue training if model hasn't converged
+   - Use fresh training if model performance degrades
+
+#### Model Evaluation Workflow
+1. **Train Model**: Use trainer.py with desired timesteps
+2. **Evaluate Performance**: Run evaluation to check expert path following
+3. **Continue Training**: If performance is insufficient, continue training
+4. **Deploy Model**: Use best-performing model for actual control
 
 ## Troubleshooting
 
@@ -546,13 +649,25 @@ The expert demonstration system allows human operators to provide training data:
 - Ensure PyAutoGUI has screen access permissions
 
 #### 5. Training Issues
-**Symptoms**: RL training not converging, environment errors
+**Symptoms**: RL training not converging, environment errors, model loading failures
 **Solutions**:
 - Validate environment with `check_env()`
 - Verify expert demonstration data quality
 - Adjust hyperparameters in trainer.py
 - Check GPU/CUDA availability for training
 - Monitor Tensorboard logs for training progress
+- Use `--fresh` flag if model loading fails
+- Ensure sufficient training timesteps (try 2M+ for complex tasks)
+- Continue training from checkpoints if initial training insufficient
+
+#### 6. Model Checkpoint Issues
+**Symptoms**: Cannot load existing model, training starts from scratch unexpectedly
+**Solutions**:
+- Verify model file exists: `ls logs/run_*/ppo_auv_model.zip`
+- Check file permissions on model files
+- Use absolute path with `--continue_from`
+- Ensure model was saved properly (check for .zip file)
+- Use `--fresh` to intentionally start new training
 
 ### Performance Optimization
 
