@@ -1,3 +1,4 @@
+import argparse
 import requests
 import pygame
 import time
@@ -17,11 +18,12 @@ def map_axis(value, in_min=-1.0, in_max=1.0, out_min=-1.0, out_max=1.0):
     return round(((value - in_min) * (out_max - out_min) / (in_max - in_min)) + out_min, 2)
 
 class Controller:
-    def __init__(self):
+    def __init__(self, ip="localhost", port=5000):
         # Configurable output range for all axes
         self.axis_min = -10.0
         self.axis_max = 10.0
         self.increment_step = 0.1  # Step size for S1/S2 buttons
+        self.db_url = f"http://{ip}:{port}/inputs"
 
         self.joystick = None
         while self.joystick is None:
@@ -109,28 +111,49 @@ class Controller:
                 "S3": 0.0
             })
 
-        print(f"Output Data: {self.output_data}", end="\r")
-
     def send_data(self):
         """
         @brief Sends the output data to the DBPackage via HTTP POST requests.
         @return None
         """
         payload = truncate_small_values(self.output_data)
-        response = requests.post("http://localhost:5000/inputs", json=payload)
+        response = requests.post(self.db_url, json=payload)
         if response.status_code == 201:
             print("Data sent successfully.")
         else:
             print(f"Failed to send data. Status code: {response.status_code}, Response: {response.text}")
 
 if __name__ == "__main__":
-    controller = Controller()
+    parser = argparse.ArgumentParser(description="Controller for AUV")
+    parser.add_argument("--ip", type=str, default="100.64.24.56", help="IP address for DBPackage")
+    parser.add_argument("--port", type=int, default=5000, help="Port for DBPackage")
+    parser.add_argument("--just-print", action="store_true", help="Just print the output data, don't send to DBPackage")
+    parser.add_argument("--print-raw", action="store_true", help="Print the raw joystick data")
+    parser.add_argument("--print-output", action="store_true", help="Print the output data")
+    parser.add_argument("--print-both", action="store_true", help="Print both raw and output data")
+    parser.add_argument("--no-print", action="store_true", help="Don't print anything")
+    parser.add_argument("--print-interval", type=float, default=0.1, help="Interval for printing data (in seconds)")
+    args = parser.parse_args()
+    controller = Controller(args.ip, args.port)
     try:
         joystick_config = controller.parse_config("configs/controller.json")
         while True:
             controller.parse_output_data(joystick_config)
-            controller.send_data()
-            time.sleep(0.1)
+
+            # Handle printing options
+            if args.print_raw or args.print_both:
+                controller.print_raw_data()
+            if args.print_output or args.print_both:
+                print(f"Output Data: {controller.output_data}")
+            if not args.no_print and not args.print_raw and not args.print_output and not args.print_both:
+                # Default behavior - print output data
+                print(f"Output Data: {controller.output_data}", end="\r")
+
+            # Send data unless just-print is specified
+            if not args.just_print:
+                controller.send_data()
+
+            time.sleep(args.print_interval)
     except KeyboardInterrupt:
         print("\nExiting...")
         pygame.quit()
