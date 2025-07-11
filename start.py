@@ -15,12 +15,18 @@ def main():
     parser.add_argument('--start_ai', action='store_true', help='Flag to start the AI package')
     parser.add_argument('--train', action='store_true', help='Flag to start the training process')
     parser.add_argument('--evaluate', action='store_true', help='Flag to evaluate the model')
+    parser.add_argument('--fresh', action='store_true', help='Flag to start fresh training (ignore existing models)')
     args = parser.parse_args()
+
+    # Build trainer command with optional --fresh flag
+    trainer_cmd = ['python', 'modules/trainer.py']
+    if args.fresh:
+        trainer_cmd.append('--fresh')
 
     subprocesses = [
         ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],           # 0
         ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],          # 1
-        ['python', 'modules/trainer.py'],                                                          # 2
+        trainer_cmd,                                                                               # 2
         ['python', 'modules/EvalPackage.py'],                                                      # 3
         ['python', 'modules/HardwareInterface.py', '--unity_ip', args.unity_ip, '--unity_port', str(args.unity_port), '--inputs_url', args.ip, '--inputs_port', str(args.port)],  # 4
         ['python', 'modules/Virtual_Cameras.py']                                                   # 5
