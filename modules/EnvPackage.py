@@ -6,7 +6,6 @@ import requests
 from typing import Tuple, Dict, Any, Optional
 import json
 import os
-from peaceful_pie.unity_comms import UnityComms
 
 
 class EnvPackage(gym.Env):
