@@ -84,12 +84,16 @@ class Controller:
         self.output_data["Arm"] = float(buttons[config["button"]["Arm"]["button"]])
 
         if self.output_data["Arm"] == 1.0:
+            # Check if controller values should be inverted
+            inverted = config.get("inverted", False)
+            invert_multiplier = -1.0 if inverted else 1.0
+
             # Apply deadzone and mapping to all axes
-            self.output_data["X"] = map_axis(apply_deadzone(axes[config["axis"]["X"]]), -1.0, 1.0, self.axis_min, self.axis_max)
-            self.output_data["Y"] = map_axis(apply_deadzone(axes[config["axis"]["Y"]]), -1.0, 1.0, self.axis_min, self.axis_max)
-            self.output_data["Z"] = map_axis(apply_deadzone(axes[config["axis"]["Z"]]), -1.0, 1.0, self.axis_min, self.axis_max)
-            self.output_data["Yaw"] = map_axis(apply_deadzone(axes[config["axis"]["Yaw"]]), -1.0, 1.0, self.axis_min, self.axis_max)
-            self.output_data["S3"] = map_axis(apply_deadzone(axes[config["axis"]["S3"]]), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["X"] = map_axis(apply_deadzone(axes[config["axis"]["X"]] * invert_multiplier, deadzone=config.get("deadzone", 0.1)), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["Y"] = map_axis(apply_deadzone(axes[config["axis"]["Y"]] * invert_multiplier, deadzone=config.get("deadzone", 0.1)), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["Z"] = map_axis(apply_deadzone(axes[config["axis"]["Z"]], deadzone=config.get("deadzone", 0.1)), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["Yaw"] = map_axis(apply_deadzone(axes[config["axis"]["Yaw"]], deadzone=config.get("deadzone", 0.1)), -1.0, 1.0, self.axis_min, self.axis_max)
+            self.output_data["S3"] = map_axis(apply_deadzone(axes[config["axis"]["S3"]] * invert_multiplier, deadzone=config.get("deadzone", 0.1)), -1.0, 1.0, self.axis_min, self.axis_max)
 
             # Adjust S1 and S2 via button step
             if buttons[config["button"]["S1_Increase"]["button"]]:
