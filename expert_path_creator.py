@@ -42,16 +42,17 @@ class DiscreteActionConverter:
             Discrete action index (0-39)
         """
         # Extract and normalize human inputs to [-1, 1] range
+        # Use 10.0 as the normalization factor for -10 to 10 range
         continuous_controls = np.array([
-            human_inputs.get("X", 0.0) / 128.0,      # X
-            human_inputs.get("Y", 0.0) / 128.0,      # Y
-            human_inputs.get("Z", 0.0) / 128.0,      # Z
-            human_inputs.get("Roll", 0.0) / 128.0,   # Roll
-            human_inputs.get("Pitch", 0.0) / 128.0,  # Pitch
-            human_inputs.get("Yaw", 0.0) / 128.0,    # Yaw
-            human_inputs.get("S1", 0.0) / 128.0,     # S1
-            human_inputs.get("S2", 0.0) / 128.0,     # S2
-            human_inputs.get("S3", 0.0) / 128.0,     # S3
+            human_inputs.get("X", 0.0) / 10.0,       # X
+            human_inputs.get("Y", 0.0) / 10.0,       # Y
+            human_inputs.get("Z", 0.0) / 10.0,       # Z
+            human_inputs.get("Roll", 0.0) / 10.0,    # Roll
+            human_inputs.get("Pitch", 0.0) / 10.0,   # Pitch
+            human_inputs.get("Yaw", 0.0) / 10.0,     # Yaw
+            human_inputs.get("S1", 0.0) / 10.0,      # S1
+            human_inputs.get("S2", 0.0) / 10.0,      # S2
+            human_inputs.get("S3", 0.0) / 10.0,      # S3
             human_inputs.get("Arm", 1.0)             # Arm (already 0-1)
         ], dtype=np.float32)
 

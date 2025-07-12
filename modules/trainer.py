@@ -32,7 +32,13 @@ def make_env():
     """
     Create a wrapped environment instance.
     """
-    env = EnvPackage(dbIP="localhost", dbPort=5000, unityIP="localhost", unityPort=9999)
+    env = EnvPackage(
+        dbIP="localhost",
+        dbPort=5000,
+        unityIP="localhost",
+        unityPort=9999,
+        expert_path_file="modules/expert_paths/path_2.json"
+    )
     return env
 
 
@@ -69,10 +75,8 @@ def main():
 
     # Force CPU usage instead of GPU
     device = "cpu"
-    print(f"[INFO] Using device: {device.upper()} (forced CPU mode)")
 
     # Validate custom environment
-    print("[INFO] Validating custom Gym environment...")
     check_env(make_env(), warn=True)
 
     # Create vectorized environment
@@ -82,22 +86,16 @@ def main():
     existing_model_path = None
 
     if args.fresh:
-        print("[INFO] Fresh training requested, ignoring existing models...")
+        pass  # Ignore existing models
     elif args.continue_from:
         if os.path.exists(args.continue_from):
             existing_model_path = args.continue_from
-            print(f"[INFO] Using specified model: {existing_model_path}")
         else:
-            print(f"[ERROR] Specified model not found: {args.continue_from}")
-            print("[INFO] Falling back to latest model search...")
             existing_model_path = find_latest_model()
     else:
         existing_model_path = find_latest_model()
 
     if existing_model_path:
-        print(f"[INFO] Found existing model: {existing_model_path}")
-        print("[INFO] Loading model to continue training...")
-
         # Load existing model
         model = PPO.load(existing_model_path, env=env, device=device)
 
@@ -105,15 +103,11 @@ def main():
         log_dir = os.path.join("logs", datetime.now().strftime("run_%Y%m%d_%H%M%S_continued"))
         model.tensorboard_log = log_dir
         os.makedirs(log_dir, exist_ok=True)
-        print(f"[INFO] Continuing training, logging to {log_dir}")
 
     else:
-        print("[INFO] No existing model found, starting fresh training...")
-
         # Logging directory
         log_dir = os.path.join("logs", datetime.now().strftime("run_%Y%m%d_%H%M%S"))
         os.makedirs(log_dir, exist_ok=True)
-        print(f"[INFO] Logging to {log_dir}")
 
         # Initialize new PPO model
         model = PPO(
@@ -127,27 +121,17 @@ def main():
             gae_lambda=0.95,
             gamma=0.99,
             ent_coef=0.01,
-            learning_rate=2.5e-4,
+            learning_rate=5e-4,
             clip_range=0.2,
         )
 
     # Train model
     total_timesteps = args.timesteps
-    if existing_model_path:
-        print(f"[INFO] Continuing training for {total_timesteps} additional timesteps...")
-    else:
-        print(f"[INFO] Beginning fresh training for {total_timesteps} timesteps...")
-
     model.learn(total_timesteps=total_timesteps)
 
     # Save trained model
     model_path = os.path.join(log_dir, "ppo_auv_model.zip")
     model.save(model_path)
-    print(f"[INFO] Model saved to {model_path}")
-
-    if existing_model_path:
-        print(f"[INFO] Training continued from: {existing_model_path}")
-        print(f"[INFO] New model saved to: {model_path}")
 
     # Cleanup
     env.close()

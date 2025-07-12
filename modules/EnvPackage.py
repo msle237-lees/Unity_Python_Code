@@ -258,7 +258,6 @@ class EnvPackage(gym.Env):
             raise Exception(f"Failed to set submarine inputs: {response.text}")
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
-        print("[DEBUG] Environment reset() called")
         super().reset(seed=seed)
         if seed is not None:
             self.seed(seed)
@@ -284,14 +283,7 @@ class EnvPackage(gym.Env):
         rot = self._getSubRot(self.rotURL)
         vel = self._getSubVel(self.velURL)
 
-        # Debug: Print reset position
-        print(f"[DEBUG] Reset complete - Position: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f})")
-        if len(self.expert_path) > 0:
-            expert_start = self.expert_path[0]
-            expert_pos = np.array([expert_start["X"], expert_start["Y"], expert_start["Z"]])
-            current_pos = np.array([pos.x, pos.y, pos.z])
-            initial_distance = np.linalg.norm(current_pos - expert_pos)
-            print(f"[DEBUG] Initial distance to expert: {initial_distance:.2f}")
+
 
         observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
 
@@ -342,17 +334,17 @@ class EnvPackage(gym.Env):
                     original_inputs.get("Arm", 1.0)
                 ], dtype=np.float32)
 
-                # Normalize human inputs to [-1, 1] range
+                # Normalize human inputs to [-1, 1] range (assuming -10 to 10 input range)
                 normalized_human_inputs = np.array([
-                    human_inputs[0] / 128.0,   # X
-                    human_inputs[1] / 128.0,   # Y
-                    human_inputs[2] / 128.0,   # Z
-                    human_inputs[3] / 128.0,   # Roll
-                    human_inputs[4] / 128.0,   # Pitch
-                    human_inputs[5] / 128.0,   # Yaw
-                    human_inputs[6] / 128.0,   # S1
-                    human_inputs[7] / 128.0,   # S2
-                    human_inputs[8] / 128.0,   # S3
+                    human_inputs[0] / 10.0,   # X
+                    human_inputs[1] / 10.0,   # Y
+                    human_inputs[2] / 10.0,   # Z
+                    human_inputs[3] / 10.0,   # Roll
+                    human_inputs[4] / 10.0,   # Pitch
+                    human_inputs[5] / 10.0,   # Yaw
+                    human_inputs[6] / 10.0,   # S1
+                    human_inputs[7] / 10.0,   # S2
+                    human_inputs[8] / 10.0,   # S3
                     human_inputs[9] * 2.0 - 1.0  # Arm: convert [0,1] to [-1,1]
                 ], dtype=np.float32)
 
@@ -409,18 +401,7 @@ class EnvPackage(gym.Env):
         terminated = bool(input_difference > max_input_difference)
         truncated = bool(self.step_index >= len(self.expert_path) - 1)  # end of demo
 
-        # Debug: Print step information for first few steps
-        if self.step_index < 5:
-            direction, force = self.decode_action(action)
-            expert_direction, expert_force = self.decode_action(expert_action)
 
-            print(f"[DEBUG] Step {self.step_index}: input_diff={input_difference:.3f}, "
-                  f"reward={reward:.2f}, terminated={terminated}, truncated={truncated}")
-            print(f"[DEBUG] AI action:     {action} -> {direction} at {force}% force")
-            print(f"[DEBUG] Expert action: {expert_action} -> {expert_direction} at {expert_force}% force")
-            print(f"[DEBUG] Action match:  {'✓' if action == expert_action else '✗'}")
-            print(f"[DEBUG] Direction match: {'✓' if ai_direction == expert_direction else '✗'}")
-            print(f"[DEBUG] Component diffs: S3={s3_diff:.3f}, Arm={arm_diff:.3f}")
 
         self.step_index += 1
 
