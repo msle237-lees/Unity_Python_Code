@@ -167,6 +167,6 @@ if __name__ == "__main__":
     parser.add_argument("--inputs_port", type=int, default=5000, help="Port for RL server")
     args = parser.parse_args()
 
-    unity_interface = unityInterface(args.unity_port, args.inputs_url, args.inputs_port)
+    unity_interface = unityInterface(unity_port=args.unity_port, inputs_url=args.inputs_url, inputs_port=args.inputs_port)
     
     unity_interface.run()
