@@ -10,18 +10,18 @@ echo "    AUV Control and Training Suite"
 echo "========================================"
 echo
 
-# Check if Python is available
-if ! command -v python3 &> /dev/null || ! command -v python &> /dev/null; then
-    echo "ERROR: Python is not installed or not in PATH"
-    echo "Please install Python 3.8+ and try again"
-    exit 1
-fi
+# # Check if Python is available
+# if ! command -v python3 &> /dev/null || ! command -v python &> /dev/null; then
+#     echo "ERROR: Python is not installed or not in PATH"
+#     echo "Please install Python 3.8+ and try again"
+#     exit 1
+# fi
 
-# Use python3 if available, otherwise python
-PYTHON_CMD="python3"
-if ! command -v python3 &> /dev/null; then
-    PYTHON_CMD="python"
-fi
+# # Use python3 if available, otherwise python
+# PYTHON_CMD="python3"
+# if ! command -v python3 &> /dev/null; then
+#     PYTHON_CMD="python"
+# fi
 
 # Check if we're in the correct directory
 if [ ! -f "start.py" ]; then
