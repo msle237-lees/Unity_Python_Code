@@ -188,9 +188,7 @@ def main():
     parser.add_argument("--port", type=int, default=5000, help="API port")
     # Uses --fip, --fsport, --model_path, --expert_path_file, --processes
 
-    # Hardware interface arguments
-    parser.add_argument("--start_hardware", action="store_true", help="Flag to start the hardware interface")
-    # Also uses --fip, --fsport, --usip, --usport
+    # Hardware interface arguments (duplicate removed)
     
     # Linux simulator arguments
     parser.add_argument("--start_linux_simulator", action="store_true", help="Flag to start the Linux simulator")
