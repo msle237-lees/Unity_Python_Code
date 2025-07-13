@@ -35,14 +35,16 @@ show_menu() {
     echo "Select an option:"
     echo
     echo "1. Start Complete System (Training + Hardware + Linux Sim)"
-    echo "2. Start Training Only (Cluster Mode)"
-    echo "3. Start Hardware Interface Only"
-    echo "4. Start Controller (Manual Control)"
-    echo "5. Start Fresh Training"
-    echo "6. Continue Training from Existing Model"
-    echo "7. Evaluate Trained Model"
-    echo "8. Start Cloud Machine (Model Evaluation)"
-    echo "9. Interactive Mode (Custom Arguments)"
+    echo "2. Start Single Machine Mode (All-in-One)"
+    echo "3. Start Single Machine Fresh Training"
+    echo "4. Start Training Only (Cluster Mode)"
+    echo "5. Start Hardware Interface Only"
+    echo "6. Start Controller (Manual Control)"
+    echo "7. Start Fresh Training (Multi-Component)"
+    echo "8. Continue Training from Existing Model"
+    echo "9. Evaluate Trained Model"
+    echo "10. Start Cloud Machine (Model Evaluation)"
+    echo "11. Interactive Mode (Custom Arguments)"
     echo "0. Exit"
     echo
 }
@@ -55,12 +57,55 @@ complete_system() {
     $PYTHON_CMD start.py --start_hardware --start_linux_simulator --processes 4
 }
 
+single_machine() {
+    echo
+    echo "Starting Single Machine Mode (All-in-One)..."
+    echo "This mode runs everything on one machine with simplified configuration"
+    echo "Perfect for development, testing, or single-machine deployments"
+    echo
+    echo "Note: Each training process will run in parallel with its own:"
+    echo "- Database instance (different ports)"
+    echo "- Hardware interface"
+    echo "- Unity simulator instance"
+    echo
+    read -p "Enter number of parallel training processes (default 4): " processes
+    processes=${processes:-4}
+    read -p "Enter training timesteps (default 1000000): " timesteps
+    timesteps=${timesteps:-1000000}
+    echo
+    echo "Starting single machine AUV system with $processes parallel training process(es)..."
+    $PYTHON_CMD start.py --start_hardware --start_linux_simulator --processes $processes --timesteps $timesteps --fresh
+}
+
+single_machine_fresh() {
+    echo
+    echo "Starting Single Machine Fresh Training..."
+    echo "This mode starts fresh training optimized for single machine deployment"
+    echo "Ideal for starting new training experiments on one machine"
+    echo
+    echo "Note: This will:"
+    echo "- Start fresh training (ignore existing models)"
+    echo "- Run multiple parallel training processes"
+    echo "- Each process gets its own database, hardware interface, and simulator"
+    echo "- Optimized settings for single machine performance"
+    echo
+    read -p "Enter number of parallel training processes (default 2): " processes
+    processes=${processes:-2}
+    read -p "Enter training timesteps (default 1000000): " timesteps
+    timesteps=${timesteps:-1000000}
+    echo
+    echo "Starting fresh training on single machine with $processes parallel process(es)..."
+    echo "Training for $timesteps timesteps..."
+    $PYTHON_CMD start.py --fresh --start_hardware --start_linux_simulator --processes $processes --timesteps $timesteps
+}
+
 training_only() {
     echo
     echo "Starting Training System (Cluster Mode)..."
-    echo "This will start multiple training processes without simulators"
+    echo "This will start multiple parallel training processes without simulators"
+    echo "Use this mode when running on a cluster machine dedicated to training"
     echo
-    read -p "Enter number of training processes (default 4): " processes
+    read -p "Enter number of parallel training processes (default 4): " processes
     processes=${processes:-4}
     $PYTHON_CMD start.py --cluster_machine --processes $processes
 }
@@ -88,11 +133,11 @@ controller() {
 fresh_training() {
     echo
     echo "Starting Fresh Training..."
-    echo "This will start new training from scratch"
+    echo "This will start new training from scratch with hardware and simulator"
     echo
     read -p "Enter training timesteps (default 1000000): " timesteps
     timesteps=${timesteps:-1000000}
-    read -p "Enter number of processes (default 4): " processes
+    read -p "Enter number of parallel training processes (default 4): " processes
     processes=${processes:-4}
     $PYTHON_CMD start.py --fresh --timesteps $timesteps --processes $processes --start_hardware --start_linux_simulator
 }
@@ -140,19 +185,21 @@ interactive_mode() {
 # Main menu loop
 while true; do
     show_menu
-    read -p "Enter your choice (0-9): " choice
-    
+    read -p "Enter your choice (0-11): " choice
+
     case $choice in
         1) complete_system ;;
-        2) training_only ;;
-        3) hardware_only ;;
-        4) controller ;;
-        5) fresh_training ;;
-        6) continue_training ;;
-        7) evaluate_model ;;
-        8) cloud_machine ;;
-        9) interactive_mode ;;
-        0) 
+        2) single_machine ;;
+        3) single_machine_fresh ;;
+        4) training_only ;;
+        5) hardware_only ;;
+        6) controller ;;
+        7) fresh_training ;;
+        8) continue_training ;;
+        9) evaluate_model ;;
+        10) cloud_machine ;;
+        11) interactive_mode ;;
+        0)
             echo
             echo "Exiting AUV Control and Training Suite"
             echo "Thank you for using the system!"

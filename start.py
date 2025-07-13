@@ -549,21 +549,24 @@ def main():
         cloud_processes = {"Cloud-DBPackage": [], "Cloud-Evaluator": []}
         
         # Cloud-DBPackage
-        cloud_processes["Cloud-DBPackage"] = [
-            "python", 
-            "modules/Cloud-DBPackage.py", 
-            "--host", args.fip, 
-            "--port", str(args.fsport + i) for i in range(args.processes)
-        ]
+        for i in range(args.processes):
+            cloud_processes["Cloud-DBPackage"].append([
+                "python",
+                "modules/Cloud-DBPackage.py",
+                "--host", args.fip,
+                "--port", str(args.fsport + i)
+            ])
         
         # Ensure a folder for models exists
         if not os.path.exists(args.model_path):
             os.makedirs(args.model_path)
         
-        # Starting Cloud-DBPackage
-        _log_message(log_dir, "main", "Starting Cloud-DBPackage...")
-        _start_process(log_dir, cloud_processes["Cloud-DBPackage"], "Cloud-DBPackage")
-        _log_message(log_dir, "main", "Cloud-DBPackage Started")
+        # Starting Cloud-DBPackage processes
+        _log_message(log_dir, "main", "Starting Cloud-DBPackage processes...")
+        for i, command in enumerate(cloud_processes["Cloud-DBPackage"]):
+            _log_message(log_dir, "main", f"Starting Cloud-DBPackage process {i}")
+            _start_process(log_dir, command, f"Cloud-DBPackage-{i}")
+        _log_message(log_dir, "main", "All Cloud-DBPackage processes started")
         
         # Wait for models to be sent from the cluster machines
         _log_message(log_dir, "main", "Waiting for models to be sent from cluster machines...")
@@ -573,17 +576,17 @@ def main():
             time.sleep(1)
         
         # Evaluate the models
-        for models in os.listdir(args.model_path):
+        for i, models in enumerate(os.listdir(args.model_path)):
             _log_message(log_dir, "main", f"Starting evaluation of {models}...")
             cloud_processes["Cloud-Evaluator"].append(
                 subprocess.Popen(
                     [
-                        "python", 
-                        "modules/Cloud-Evaluator.py", 
-                        "--host", args.fip, 
+                        "python",
+                        "modules/Cloud-Evaluator.py",
+                        "--host", args.fip,
                         "--port", str(args.fsport + i),
                         "--model_path", f"{args.model_path}/{models}",
-                        "--machine_id", args.machine_id
+                        "--machine_id", str(args.machine_id)
                     ],
                     stdout=subprocess.PIPE
                 )
