@@ -26,4 +26,4 @@ if not exist "start.py" (
     exit /b 1
 )
 
-python start.py --start_hardware --start_windows_simulator --processes 6 --fresh
+python start.py --start_hardware --start_windows_simulator --processes 6 --fresh --cluster_machine
