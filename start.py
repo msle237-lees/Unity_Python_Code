@@ -240,6 +240,10 @@ def main():
     
     if args.interactive:
         args = _interactive(args)
+        
+    # Check if the simulators need to be downloaded
+    if not os.path.exists(os.path.join(os.path.dirname(__file__), "Sims")):
+        _get_sims()
     
     log_dir = args.log_dir
     log_labels = args.log_labels
