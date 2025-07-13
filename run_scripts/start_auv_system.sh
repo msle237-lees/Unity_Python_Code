@@ -30,4 +30,4 @@ if [ ! -f "start.py" ]; then
     exit 1
 fi
 
-python start.py --start_hardware --start_linux_simulator --processes 6 --fresh
+python start.py --start_hardware --start_linux_simulator --processes 6 --fresh --cluster_machine
