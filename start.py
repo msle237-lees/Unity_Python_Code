@@ -62,6 +62,33 @@ def _interactive(args):
             args[arg] = input(f"Enter new value for {arg}: ")
     return args
 
+def _get_sims():
+    dir = os.path.join(os.path.dirname(__file__), "Sims")
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+        
+    # Download and extract Linux simulator
+    linux_url = "https://github.com/ksu-auv-team/Unity_Sim_2025/releases/download/v1.0.0/7-12-2025-Linux.zip"
+    linux_zip = os.path.join(dir, "7-12-2025-Linux.zip")
+    if not os.path.exists(os.path.join(dir, "7-12-2025-Linux")):
+        print("Downloading Linux simulator...")
+        response = requests.get(linux_url)
+        with open(linux_zip, 'wb') as f:
+            f.write(response.content)
+        shutil.unpack_archive(linux_zip, dir)
+        os.remove(linux_zip)
+        
+    # Download and extract Windows simulator
+    windows_url = "https://github.com/ksu-auv-team/Unity_Sim_2025/releases/download/v1.0.0/7-12-2025-Windows.zip"
+    windows_zip = os.path.join(dir, "7-12-2025-Windows.zip")
+    if not os.path.exists(os.path.join(dir, "7-12-2025-Windows")):
+        print("Downloading Windows simulator...")
+        response = requests.get(windows_url)
+        with open(windows_zip, 'wb') as f:
+            f.write(response.content)
+        shutil.unpack_archive(windows_zip, dir)
+        os.remove(windows_zip)
+
 def main():
     # Create the necessary directories if they don't exist
     for directory in ["logs", "evaluation_results", "expert_paths"]:
