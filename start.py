@@ -406,6 +406,7 @@ def main():
                 "./Sims/7-12-2025-Linux/AUV_Sim.x86_64",
                 "-batchmode",
                 "-nographics",
+                "-ip", args.usip,
                 "-port", str(args.usport + i)
             ])
         if args.start_windows_simulator:
@@ -413,6 +414,7 @@ def main():
                 ".\\Sims\\7-12-2025-Windows\\0008-AUVSim_With_Python_Interface.exe",
                 "-batchmode",
                 "-nographics",
+                "-ip", args.usip,
                 "-port", str(args.usport + i)
             ])
     _log_message(log_dir, "main", "Evaluation Processes Generated")
@@ -425,13 +427,13 @@ def main():
 
             def start_process_thread(i):
                 _log_message(log_dir, "main", f"Starting Process {i}")
-                training_processes["CM-DBPackage"][i] = _start_process(log_dir, training_processes["CM-DBPackage"][i], "CM-DBPackage")
-                training_processes["Trainer"][i] = _start_process(log_dir, training_processes["Trainer"][i], "Trainer")
-                training_processes["HardwareInterface"][i] = _start_process(log_dir, training_processes["HardwareInterface"][i], "HardwareInterface")
                 if args.start_linux_simulator:
                     training_processes["LinuxSimulator"][i] = _start_process(log_dir, training_processes["LinuxSimulator"][i], "LinuxSimulator")
                 if args.start_windows_simulator:
                     training_processes["WindowsSimulator"][i] = _start_process(log_dir, training_processes["WindowsSimulator"][i], "WindowsSimulator")
+                training_processes["CM-DBPackage"][i] = _start_process(log_dir, training_processes["CM-DBPackage"][i], "CM-DBPackage")
+                training_processes["Trainer"][i] = _start_process(log_dir, training_processes["Trainer"][i], "Trainer")
+                training_processes["HardwareInterface"][i] = _start_process(log_dir, training_processes["HardwareInterface"][i], "HardwareInterface")
                 _log_message(log_dir, "main", f"Process {i} Started")
 
             threads = []
@@ -459,13 +461,13 @@ def main():
             
             def start_eval_process_thread(i):
                 _log_message(log_dir, "main", f"Starting Evaluation Process {i}")
-                evaluation_processes["CM-DBPackage"][i] = _start_process(log_dir, evaluation_processes["CM-DBPackage"][i], "CM-DBPackage")
-                evaluation_processes["EvalPackage"][i] = _start_process(log_dir, evaluation_processes["EvalPackage"][i], "EvalPackage")
-                evaluation_processes["HardwareInterface"][i] = _start_process(log_dir, evaluation_processes["HardwareInterface"][i], "HardwareInterface")
                 if args.start_linux_simulator:
                     evaluation_processes["LinuxSimulator"][i] = _start_process(log_dir, evaluation_processes["LinuxSimulator"][i], "LinuxSimulator")
                 if args.start_windows_simulator:
                     evaluation_processes["WindowsSimulator"][i] = _start_process(log_dir, evaluation_processes["WindowsSimulator"][i], "WindowsSimulator")
+                evaluation_processes["CM-DBPackage"][i] = _start_process(log_dir, evaluation_processes["CM-DBPackage"][i], "CM-DBPackage")
+                evaluation_processes["EvalPackage"][i] = _start_process(log_dir, evaluation_processes["EvalPackage"][i], "EvalPackage")
+                evaluation_processes["HardwareInterface"][i] = _start_process(log_dir, evaluation_processes["HardwareInterface"][i], "HardwareInterface")
                 _log_message(log_dir, "main", f"Evaluation Process {i} Started")
 
             eval_threads = []
