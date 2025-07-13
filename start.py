@@ -417,16 +417,28 @@ def main():
         while True:
             _log_message(log_dir, "main", "Starting Cluster Processes...")
             # Start the necessary processes in seperate threads and log their output in real-time and with the necessary labels for training
-            for i in range(args.processes):
+            import threading
+
+            def start_process_thread(i):
                 _log_message(log_dir, "main", f"Starting Process {i}")
-                _start_process(log_dir, training_processes["CM-DBPackage"][i], "CM-DBPackage")
-                _start_process(log_dir, training_processes["Trainer"][i], "Trainer")
-                _start_process(log_dir, training_processes["HardwareInterface"][i], "HardwareInterface")
+                training_processes["CM-DBPackage"][i] = _start_process(log_dir, training_processes["CM-DBPackage"][i], "CM-DBPackage")
+                training_processes["Trainer"][i] = _start_process(log_dir, training_processes["Trainer"][i], "Trainer")
+                training_processes["HardwareInterface"][i] = _start_process(log_dir, training_processes["HardwareInterface"][i], "HardwareInterface")
                 if args.start_linux_simulator:
-                    _start_process(log_dir, training_processes["LinuxSimulator"][i], "LinuxSimulator")
+                    training_processes["LinuxSimulator"][i] = _start_process(log_dir, training_processes["LinuxSimulator"][i], "LinuxSimulator")
                 if args.start_windows_simulator:
-                    _start_process(log_dir, training_processes["WindowsSimulator"][i], "WindowsSimulator")
+                    training_processes["WindowsSimulator"][i] = _start_process(log_dir, training_processes["WindowsSimulator"][i], "WindowsSimulator")
                 _log_message(log_dir, "main", f"Process {i} Started")
+
+            threads = []
+            for i in range(args.processes):
+                thread = threading.Thread(target=start_process_thread, args=(i,))
+                threads.append(thread)
+                thread.start()
+
+            # Wait for all threads to complete
+            for thread in threads:
+                thread.join()
             
             # Wait for the trainer process to finish
             for i in range(args.processes):
@@ -441,16 +453,26 @@ def main():
                     _terminate_process(p, "main")
             _log_message(log_dir, "main", "Starting Evaluation Processes...")
             
-            for i in range(args.processes):
+            def start_eval_process_thread(i):
                 _log_message(log_dir, "main", f"Starting Evaluation Process {i}")
-                _start_process(log_dir, evaluation_processes["CM-DBPackage"][i], "CM-DBPackage")
-                _start_process(log_dir, evaluation_processes["EvalPackage"][i], "EvalPackage")
-                _start_process(log_dir, evaluation_processes["HardwareInterface"][i], "HardwareInterface")
+                evaluation_processes["CM-DBPackage"][i] = _start_process(log_dir, evaluation_processes["CM-DBPackage"][i], "CM-DBPackage")
+                evaluation_processes["EvalPackage"][i] = _start_process(log_dir, evaluation_processes["EvalPackage"][i], "EvalPackage")
+                evaluation_processes["HardwareInterface"][i] = _start_process(log_dir, evaluation_processes["HardwareInterface"][i], "HardwareInterface")
                 if args.start_linux_simulator:
-                    _start_process(log_dir, evaluation_processes["LinuxSimulator"][i], "LinuxSimulator")
+                    evaluation_processes["LinuxSimulator"][i] = _start_process(log_dir, evaluation_processes["LinuxSimulator"][i], "LinuxSimulator")
                 if args.start_windows_simulator:
-                    _start_process(log_dir, evaluation_processes["WindowsSimulator"][i], "WindowsSimulator")
+                    evaluation_processes["WindowsSimulator"][i] = _start_process(log_dir, evaluation_processes["WindowsSimulator"][i], "WindowsSimulator")
                 _log_message(log_dir, "main", f"Evaluation Process {i} Started")
+
+            eval_threads = []
+            for i in range(args.processes):
+                thread = threading.Thread(target=start_eval_process_thread, args=(i,))
+                eval_threads.append(thread)
+                thread.start()
+
+            # Wait for all evaluation threads to complete
+            for thread in eval_threads:
+                thread.join()
                         
             # Wait for the evaluation process to finish
             for i in range(args.processes):
