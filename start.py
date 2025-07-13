@@ -648,6 +648,12 @@ def main():
             _log_message(log_dir, "main", "Failed to send best model to cluster machines")
         
         _log_message(log_dir, "main", "All models evaluated")
-        
+    
+    if args.start_hardware:
+        _log_message(log_dir, "main", "Starting Hardware Interface...")
+        hardware_process = _start_process(log_dir, ["python", "modules/HardwareInterface.py", "--usip", args.usip, "--usport", str(args.usport)], "HardwareInterface")
+        hardware_process.wait()
+        _log_message(log_dir, "main", "Hardware Interface Finished")
+
 if __name__ == "__main__":
     main()
