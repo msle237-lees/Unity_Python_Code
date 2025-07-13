@@ -73,20 +73,51 @@ This repository contains a comprehensive collection of Python scripts and module
 The system follows a distributed microservices architecture where different components communicate through HTTP APIs:
 
 ```
-Unity Simulation ←→ HardwareInterface ←→ DBPackage (Flask API) ←→ Controller/AI
-                                            ↓
-                                    Virtual_Cameras
+Unity Simulation ←→ HardwareInterface ←→ DBPackage (Flask API) ←→ Controller/AI/Training
                                             ↓
                                     Expert Path Creator
+                                            ↓
+                                    Discrete Action Conversion
+                                            ↓
+                                    RL Environment (EnvPackage)
+                                            ↓
+                                    PPO Training & Evaluation
 ```
 
+**Key Improvements**:
+- **Discrete Action Space**: 40 actions (8 directions × 5 force levels) for simplified learning
+- **Expert Data Integration**: Seamless loading of human demonstrations with discrete actions
+- **Normalization Fixes**: Proper -10 to +10 input range handling
+- **Unity Build Support**: Optimized for standalone Unity builds
+- **Database Row Selection**: Start expert data from specific database rows
+
 ### Communication Flow
-1. **Unity Simulation** runs the AUV physics simulation
+1. **Unity Simulation** runs the AUV physics simulation (standalone builds available)
 2. **HardwareInterface** bridges Unity and the data API
 3. **DBPackage** serves as the central data hub (SQLite + Flask)
 4. **Controller** reads joystick input and sends commands
-5. **Virtual_Cameras** captures Unity screen regions for visual feedback
-6. **AI/Training** components use the API for reinforcement learning
+5. **Expert Path Creator** converts human demonstrations to discrete actions
+6. **AI/Training** components use discrete action space for reinforcement learning
+
+### Unity Simulation Builds
+
+Pre-built Unity simulations are available in the `Sims/` directory:
+
+**Linux Build** (`Sims/7-12-2025-Linux/`):
+- Executable: `AUV_Sim.x86_64`
+- Optimized for headless training
+- Supports command-line arguments
+
+**Windows Build** (`Sims/7-12-2025-Windows/`):
+- Executable: `0008-AUVSim_With_Python_Interface.exe`
+- Full graphics support
+- Compatible with development workflow
+
+**Features**:
+- **Headless Mode**: Run with `-batchmode -nographics` for training
+- **Port Configuration**: Configurable Unity communication ports
+- **Reset Functionality**: Arm parameter controls simulation reset
+- **Physics Simulation**: Realistic AUV dynamics and controls
 
 ## Installation and Setup
 
@@ -164,14 +195,42 @@ Options:
 **Purpose**: Records expert demonstrations by capturing system state and control inputs.
 
 **Features**:
-- Fetches combined position, rotation, velocity, and input data from API
+- Fetches human pilot input data from database API
+- Converts continuous inputs to discrete actions (40 action space)
 - Filters out steps where Arm is not engaged
-- Saves expert trajectories as JSON files for training
-- Supports custom output file paths
+- Supports starting from specific database rows (e.g., row 133)
+- Saves expert trajectories with discrete actions and original inputs
+- Proper normalization for -10 to +10 input ranges
+- Action distribution analysis and statistics
 
 **Usage**:
 ```bash
+# Basic usage
 python expert_path_creator.py --host localhost --port 5000 --output expert_paths/demo1.json
+
+# Start from specific database row
+python expert_path_creator.py --start-row 133 --output modules/expert_paths/path_2.json
+
+# Using start.py wrapper
+python start.py --get-expert-path
+```
+
+**Output Format**:
+```json
+[
+  {
+    "timestep": 0,
+    "datetime": "2025-07-12T01:25:03.876419",
+    "discrete_action": 10,
+    "direction": "Left",
+    "force_percent": 0,
+    "original_inputs": {
+      "X": 0.0, "Y": 0.0, "Z": -5.2,
+      "Roll": 0.0, "Pitch": 0.0, "Yaw": 0.0,
+      "S1": 0.0, "S2": 0.0, "S3": 0.0, "Arm": 1.0
+    }
+  }
+]
 ```
 
 ### Modules Directory
@@ -208,14 +267,17 @@ python expert_path_creator.py --host localhost --port 5000 --output expert_paths
 4. Posts updated state back to DBPackage
 
 #### modules/EnvPackage.py
-**Purpose**: Gymnasium-compatible reinforcement learning environment.
+**Purpose**: Gymnasium-compatible reinforcement learning environment with discrete action space.
 
 **Features**:
 - **Observation Space**: 12D vector [position(3) + rotation(3) + linear_vel(3) + angular_vel(3)]
-- **Action Space**: 10D continuous control [X, Y, Z, Roll, Pitch, Yaw, S1, S2, S3, Arm]
-- **Expert Path Loading**: Loads demonstration data for imitation learning
-- **Reward Function**: Customizable reward based on task objectives
-- **Episode Management**: Handles reset and step functions
+- **Action Space**: 40 discrete actions (8 directions × 5 force levels)
+  - Directions: Forward, Back, Left, Right, Up, Down, Yaw Right, Yaw Left
+  - Force Levels: 0%, 25%, 50%, 75%, 100%
+- **Expert Path Loading**: Loads demonstration data with discrete actions for imitation learning
+- **Reward Function**: Action-based comparison with expert demonstrations
+- **Episode Management**: Handles reset and step functions with Unity simulation
+- **Normalization**: Proper handling of -10 to +10 input ranges
 
 #### modules/KwasiEnvPackage.py
 **Purpose**: Alternative RL environment implementation with different observation/action spaces.
@@ -259,13 +321,16 @@ cam_3: (1361, 701) to (2080, 1109)  # Bottom camera view
 - **Flexible Training**: Command-line options for custom training configurations
 
 **Training Configuration**:
-- **Policy**: Custom MLP with configurable hidden layers
+- **Policy**: Custom MLP with configurable hidden layers [512, 256, 128]
 - **Algorithm**: PPO with optimized hyperparameters
+- **Action Space**: 40 discrete actions (8 directions × 5 force levels)
 - **Batch Size**: 512 samples
-- **Learning Rate**: 2.5e-4
+- **Learning Rate**: 5e-4 (updated for better performance)
 - **Gamma**: 0.99 (discount factor)
 - **GAE Lambda**: 0.95 (advantage estimation)
 - **Default Timesteps**: 1,000,000 (configurable)
+- **Expert Path**: Uses `modules/expert_paths/path_2.json` (from row 133)
+- **Normalization**: Proper -10 to +10 input range handling
 
 **Command Line Options**:
 ```bash
@@ -562,12 +627,20 @@ The system supports reinforcement learning through two main environment implemen
 
 ### Expert Demonstration System
 
-The expert demonstration system allows human operators to provide training data:
+The expert demonstration system allows human operators to provide training data with discrete action conversion:
 
-1. **Data Collection**: Records position, rotation, velocity, and control inputs
-2. **Filtering**: Removes inactive periods (when Arm is not engaged)
-3. **Storage**: Saves demonstrations as JSON files
-4. **Integration**: Loads expert data into RL environment for imitation learning
+1. **Data Collection**: Records human pilot control inputs from database
+2. **Discrete Action Conversion**: Converts continuous inputs to 40 discrete actions
+3. **Filtering**: Removes inactive periods (when Arm is not engaged)
+4. **Database Row Selection**: Can start from specific rows (e.g., row 133 for better data)
+5. **Normalization**: Proper handling of -10 to +10 input ranges
+6. **Storage**: Saves demonstrations as JSON files with both discrete actions and original inputs
+7. **Integration**: Loads expert data into RL environment for imitation learning
+8. **Statistics**: Provides action distribution analysis for data quality assessment
+
+**Available Expert Paths**:
+- `modules/expert_paths/path_1.json`: Original expert demonstration data
+- `modules/expert_paths/path_2.json`: Updated data starting from database row 133 with discrete actions
 
 ### Model Management and Training Best Practices
 
@@ -703,6 +776,68 @@ netstat -tulpn | grep :5000
 ```
 
 ---
+
+## Recent Improvements and Current Status
+
+### Version 2.0 Updates (July 2025)
+
+**Major Improvements**:
+1. **Discrete Action Space**: Converted from continuous to discrete actions (40 total)
+   - 8 directions: Forward, Back, Left, Right, Up, Down, Yaw Right, Yaw Left
+   - 5 force levels: 0%, 25%, 50%, 75%, 100%
+   - Simplified learning and better convergence
+
+2. **Expert Data Enhancement**:
+   - Updated expert path creator to start from database row 133
+   - Proper normalization for -10 to +10 input ranges (fixed from 128.0 to 10.0)
+   - Discrete action conversion with original input preservation
+   - Action distribution analysis for data quality assessment
+
+3. **Training System Optimization**:
+   - Learning rate increased to 5e-4 for better performance
+   - Expert path updated to `modules/expert_paths/path_2.json`
+   - Clean training output (removed debug messages for recording)
+   - Improved reward function based on discrete action comparison
+
+4. **Unity Build Integration**:
+   - Pre-built Linux and Windows simulation builds
+   - Headless mode support for training optimization
+   - Configurable port settings for multi-instance support
+
+**Current Training Performance**:
+- **Action Space**: 40 discrete actions vs previous continuous
+- **Expert Data**: 1,373 filtered records from row 133 onwards
+- **Normalization**: Proper -10 to +10 range handling
+- **Convergence**: Improved learning stability with discrete actions
+
+**Available Expert Paths**:
+- `path_1.json`: Original continuous demonstration data (23,090 records)
+- `path_2.json`: Discrete action data from row 133 (1,373 records, optimized)
+
+### Current System Status
+
+**Fully Functional Components**:
+- ✅ Database API (DBPackage.py)
+- ✅ Unity communication bridge (HardwareInterface.py)
+- ✅ Discrete action RL environment (EnvPackage.py)
+- ✅ PPO training system (trainer.py)
+- ✅ Expert demonstration collection (expert_path_creator.py)
+- ✅ Model evaluation (EvalPackage.py)
+- ✅ Joystick control (controller.py)
+- ✅ Unity simulation builds (Linux/Windows)
+
+**Recent Fixes**:
+- ✅ Normalization range corrected (128.0 → 10.0)
+- ✅ Expert data format standardized for discrete actions
+- ✅ Training output cleaned for recording
+- ✅ Database row selection implemented
+- ✅ Action space conversion completed
+
+**Performance Metrics**:
+- Training speed: ~18 FPS (single instance)
+- Expert data quality: 66.9% Right 0%, 27.8% Down 0% (gentle control patterns)
+- Model convergence: Improved with discrete action space
+- Memory usage: Optimized for CPU training
 
 ## Additional Resources
 

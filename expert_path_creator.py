@@ -42,17 +42,16 @@ class DiscreteActionConverter:
             Discrete action index (0-39)
         """
         # Extract and normalize human inputs to [-1, 1] range
-        # Use 10.0 as the normalization factor for -10 to 10 range
         continuous_controls = np.array([
-            human_inputs.get("X", 0.0) / 10.0,       # X
-            human_inputs.get("Y", 0.0) / 10.0,       # Y
-            human_inputs.get("Z", 0.0) / 10.0,       # Z
-            human_inputs.get("Roll", 0.0) / 10.0,    # Roll
-            human_inputs.get("Pitch", 0.0) / 10.0,   # Pitch
-            human_inputs.get("Yaw", 0.0) / 10.0,     # Yaw
-            human_inputs.get("S1", 0.0) / 10.0,      # S1
-            human_inputs.get("S2", 0.0) / 10.0,      # S2
-            human_inputs.get("S3", 0.0) / 10.0,      # S3
+            human_inputs.get("X", 0.0) / 128.0,      # X
+            human_inputs.get("Y", 0.0) / 128.0,      # Y
+            human_inputs.get("Z", 0.0) / 128.0,      # Z
+            human_inputs.get("Roll", 0.0) / 128.0,   # Roll
+            human_inputs.get("Pitch", 0.0) / 128.0,  # Pitch
+            human_inputs.get("Yaw", 0.0) / 128.0,    # Yaw
+            human_inputs.get("S1", 0.0) / 128.0,     # S1
+            human_inputs.get("S2", 0.0) / 128.0,     # S2
+            human_inputs.get("S3", 0.0) / 128.0,     # S3
             human_inputs.get("Arm", 1.0)             # Arm (already 0-1)
         ], dtype=np.float32)
 
@@ -165,7 +164,7 @@ def save_expert_actions(action_data: List[Dict], out_file: str) -> None:
     print(f"[INFO] Saved {len(action_data)} discrete actions to {out_file}")
 
 
-def process_and_save_expert_actions(host: str, port: int, out_file: str, start_row: int = 132) -> None:
+def process_and_save_expert_actions(host: str, port: int, out_file: str) -> None:
     """Fetch human pilot input data and convert to discrete actions.
 
     Parameters
@@ -176,8 +175,6 @@ def process_and_save_expert_actions(host: str, port: int, out_file: str, start_r
         API port.
     out_file : str
         Output file location.
-    start_row : int
-        Database row to start from (1-based indexing, default 133).
     """
     data = _fetch_all_inputs(host, port)
 
@@ -185,20 +182,10 @@ def process_and_save_expert_actions(host: str, port: int, out_file: str, start_r
         print("[ERROR] No input data received.")
         return
 
-    # Skip to the specified start row (convert to 0-based indexing)
-    start_index = start_row - 1
-    if start_index >= len(data):
-        print(f"[ERROR] Start row {start_row} is beyond available data ({len(data)} records)")
-        return
-
-    # Take data starting from the specified row
-    data_from_start = data[start_index:]
-    print(f"[INFO] Fetched {len(data)} total input records")
-    print(f"[INFO] Starting from row {start_row} (index {start_index}), using {len(data_from_start)} records")
-
     # Filter out steps where Arm is 0 or None (when pilot wasn't actively controlling)
-    filtered_inputs = [step for step in data_from_start if step.get("Arm") not in (0, None)]
+    filtered_inputs = [step for step in data if step.get("Arm") not in (0, None)]
 
+    print(f"[INFO] Fetched {len(data)} total input records")
     print(f"[INFO] Filtered to {len(filtered_inputs)} records where Arm is engaged")
 
     if not filtered_inputs:
@@ -215,7 +202,6 @@ def process_and_save_expert_actions(host: str, port: int, out_file: str, start_r
         direction, force = converter.decode_action(discrete_action)
 
         # Create new record with discrete action and metadata
-        # Format matches what EnvPackage.py expects
         action_record = {
             "timestep": i,
             "datetime": input_record.get("datetime"),
@@ -242,6 +228,7 @@ def process_and_save_expert_actions(host: str, port: int, out_file: str, start_r
     # Show some statistics
     action_counts = {}
     for record in expert_actions:
+        action = record["discrete_action"]
         direction = record["direction"]
         force = record["force_percent"]
         key = f"{direction} {force}%"
@@ -260,10 +247,9 @@ def process_and_save_expert_actions(host: str, port: int, out_file: str, start_r
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert human pilot inputs to discrete actions for training.")
-    parser.add_argument("--host", type=str, default="10.0.0.34", help="API host")
+    parser.add_argument("--host", type=str, default="localhost", help="API host")
     parser.add_argument("--port", type=int, default=5000, help="API port")
-    parser.add_argument("--output", type=str, default="modules/expert_paths/path_2.json", help="Output file path")
-    parser.add_argument("--start-row", type=int, default=133, help="Database row to start from (1-based indexing)")
+    parser.add_argument("--output", type=str, default="expert_paths/discrete_actions.json", help="Output file path")
     args = parser.parse_args()
 
-    process_and_save_expert_actions(args.host, args.port, args.output, args.start_row)
+    process_and_save_expert_actions(args.host, args.port, args.output)
