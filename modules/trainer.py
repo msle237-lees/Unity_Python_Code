@@ -35,9 +35,7 @@ def make_env():
     def _init():
         return EnvPackage(
             db_url="http://localhost:",
-            db_url="http://localhost:",
-            dbPort=5000,
-            expert_path_file="modules/expert_paths/path_2.json"
+            dbPort=5000
         )
     return _init
 

@@ -14,11 +14,12 @@ def main():
 
     expert_paths = response.json()
 
-    # Step 2: Save expert paths to a JSON file
-    with open("expert_paths.json", "w") as json_file:
-        json.dump(expert_paths, json_file, indent=4)
-
-    print("Expert paths saved to expert_paths.json")
+    # Step 2: Make a post request to the expert_path endpoint to save the paths
+    for path in expert_paths:
+        post_response = requests.post("http://localhost:5000/expert_path", json=path)
+        if post_response.status_code != 200:
+            print(f"Error saving expert path: {post_response.text}")
+            continue
 
 
 if __name__ == "__main__":

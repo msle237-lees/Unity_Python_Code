@@ -97,6 +97,22 @@ def action():
         "arm": latest_input.arm
     }), 200
 
+@app.route('/expert_path', methods=['POST'])
+def expert_path():
+    """
+    Receive an expert path from the agent and store it in the database.
+    """
+    data = request.json
+    new_expert_path = ExpertPath(
+        step_index=data['step_index'],
+        direction=data['direction'],
+        force_level=data['force_level'],
+        arm=data['arm']
+    )
+    db.session.add(new_expert_path)
+    db.session.commit()
+    return jsonify({"message": "Expert path received and stored successfully"}), 200
+
 ## @brief When the route is accessed, it gets the most recent expert path (From Arm = 0 to Arm = 1 and then Arm = 1 back to Arm = 0) from the database.
 #  @return JSON response with the latest ExpertPath data and HTTP status code.
 @app.route('/expert_path', methods=['GET'])
