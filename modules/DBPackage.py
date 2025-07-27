@@ -27,10 +27,6 @@ db = SQLAlchemy(app)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-## Redirect all stdout and stderr to null (suppress console output)
-sys.stdout = open(os.devnull, 'w')
-sys.stderr = open(os.devnull, 'w')
-
 ## @class Inputs
 #  @brief SQLAlchemy model for storing agent actions. \n
 #         The Inputs table is used to store the actions taken by the agent.
@@ -66,8 +62,8 @@ class ExpertPath(db.Model):
 
 ## @brief Route to store an agent's action in the database.
 #  @return JSON response with success message and HTTP status code.
-@app.route('/action', methods=['POST'])
-def action():
+@app.route('/post_action', methods=['POST'])
+def post_action():
     """
     Receive an action from the agent and store it in the database.
     """
@@ -84,8 +80,8 @@ def action():
 
 ## @brief Route to retrieve the most recent agent action from the database.
 #  @return JSON response with the latest Inputs data and HTTP status code.
-@app.route('/action', methods=['GET'])
-def action():
+@app.route('/get_action', methods=['GET'])
+def get_action():
     """
     Get the latest action from the database.
     """
@@ -97,8 +93,8 @@ def action():
         "arm": latest_input.arm
     }), 200
 
-@app.route('/expert_path', methods=['POST'])
-def expert_path():
+@app.route('/post_expert_path', methods=['POST'])
+def post_expert_path():
     """
     Receive an expert path from the agent and store it in the database.
     """
@@ -115,8 +111,8 @@ def expert_path():
 
 ## @brief When the route is accessed, it gets the most recent expert path (From Arm = 0 to Arm = 1 and then Arm = 1 back to Arm = 0) from the database.
 #  @return JSON response with the latest ExpertPath data and HTTP status code.
-@app.route('/expert_path', methods=['GET'])
-def expert_path():
+@app.route('/get_expert_path', methods=['GET'])
+def get_expert_path():
     """
     Get the latest expert path from the database.
     """
@@ -158,4 +154,4 @@ args = parser.parse_args()
 
 ## @brief Entry point of the Flask application.
 if __name__ == "__main__":
-    app.run(host=args.host, port=args.port, debug=False)
+    app.run(host=args.host, port=args.port, debug=True, use_reloader=False)  # use_reloader=False to prevent double initialization

@@ -139,7 +139,7 @@ def main():
 
             while True:
                 try:
-                    response = requests.post(f"http://{args.db_host}:{args.db_port}/expert_path", json=payload)
+                    response = requests.post(f"http://{args.db_host}:{args.db_port}/post_expert_path", json=payload)
                     if response.status_code == 200:
                         logging.info("DBPackage is running and ready to accept requests.")
                         break
@@ -148,6 +148,9 @@ def main():
                 time.sleep(1)
 
             logging.info("DBPackage is running and ready to accept requests.")
+
+            # Add a small delay to ensure the DBPackage is fully initialized
+            time.sleep(2)
         else:
             logging.info("Skipping DBPackage module as per command line arguments.")
 
@@ -161,7 +164,7 @@ def main():
         else:
             logging.info("Skipping Hardware Interface module as per command line arguments.")
 
-        if args.runTrainer:
+        if args.trainer:
             trainer_cmd = [sys.executable, 'modules/trainer.py', '--timesteps', str(args.timesteps)]
             if args.continue_from:
                 trainer_cmd.append('--continue_from')

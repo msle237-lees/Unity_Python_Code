@@ -33,7 +33,7 @@ class EnvPackage(gym.Env):
         yaw: float
     
     def __init__(self, db_url : str = f'http://localhost:', dbPort : int = 5000):
-        self.db_url = db_url + str(dbPort) + "/action"
+        self.db_url = db_url + str(dbPort)
         self.expertPathURL = db_url + str(dbPort) + "/expert_path"
         self.expert_path = requests.get(self.expertPathURL).json()
         if not self.expert_path:
@@ -73,7 +73,7 @@ class EnvPackage(gym.Env):
         """
         Send an action to the db server.
         """
-        response = requests.post(self.db_url + "/action", json={"action": action})
+        response = requests.post(self.db_url + "/post_action", json={"action": action})
         if response.status_code != 200:
             raise Exception(f"Failed to send action to db server: {response.status_code} {response.text}")
 

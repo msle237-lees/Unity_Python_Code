@@ -18,7 +18,7 @@ class unityInterface:
             print("Running in test mode, UnityComms will not be initialized.")
         else:
             self.unityComms = UnityComms(port=unity_port)
-        self.inputsURL = f'http://{inputs_url}:{inputs_port}/action'
+        self.inputsURL = f'http://{inputs_url}:{inputs_port}'
         self.test = test
 
     def _restartSubPosition(self) -> None:
@@ -31,7 +31,7 @@ class unityInterface:
         """
         Get the latest inputs from the database.
         """
-        response = requests.get(self.inputsURL)
+        response = requests.get(self.inputsURL + "/get_action")
         if response.status_code == 200:
             return response.json()
         else:
