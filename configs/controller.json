@@ -66,10 +66,10 @@
         "deadzone": 0.1,
         "inverted": true,
         "axis": {
-            "X": 0,
+            "X": 3,
             "Y": 1,
-            "Z": 4,
-            "Yaw": 3,
+            "Z": 2,
+            "Yaw": 0,
             "S3": 2
         },
         "button": {
@@ -83,10 +83,10 @@
                 "button": 1
             },
             "S2_Decrease": {
-                "button": 0
+                "button": 7
             },
             "Arm": {
-                "button": 7
+                "button": 0
             }
         },
         "hat": {

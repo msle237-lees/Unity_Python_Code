@@ -19,24 +19,32 @@ def map_axis(value, in_min=-1.0, in_max=1.0, out_min=-1.0, out_max=1.0):
     return round(((value - in_min) * (out_max - out_min) / (in_max - in_min)) + out_min, 2)
 
 class Controller:
-    def __init__(self, ip="localhost", port=5000):
+    def __init__(self, ip="localhost", port=5000, config_file="configs/controller.json"):
         # Configurable output range for all axes
         self.axis_min = -10.0
         self.axis_max = 10.0
         self.increment_step = 0.1  # Step size for S1/S2 buttons
         self.db_url = f"http://{ip}:{port}/action"
 
+        self.config = self.parse_config(config_file)
+        if not self.config:
+            raise ValueError("Invalid configuration file or no joystick found.")
+
         self.joystick = None
-        while self.joystick is None:
-            try:
-                pygame.init()
-                pygame.joystick.init()
-                self.joystick = pygame.joystick.Joystick(0)
-                self.joystick.init()
-            except pygame.error:
-                print("No joystick found. Please connect a joystick and try again.")
-                time.sleep(1)
-                continue
+        pygame.init()
+        pygame.joystick.init()
+        joystick_count = pygame.joystick.get_count()
+        if joystick_count == 0:
+            raise ValueError("No joystick found. Please connect a joystick and try again.")
+        for i in range(joystick_count):
+            joystick = pygame.joystick.Joystick(i)
+            joystick.init()
+            if joystick.get_name() == self.config['name']:
+                self.joystick = joystick
+                print(f"Using joystick: {joystick.get_name()}")
+                break
+        if not self.joystick:
+            raise ValueError(f"Joystick '{self.config['name']}' not found. Please check your configuration.")
 
         self.output_data = {
             "X": 0.0,
@@ -78,6 +86,7 @@ class Controller:
             return
         selected_joystick = list(config.keys())[choice]
         print(f"Selected joystick: {config[selected_joystick]['name']}")
+        self.joystick_name = config[selected_joystick]['name']
         return config[selected_joystick]
 
     def parse_output_data(self, config: dict):
@@ -172,6 +181,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Controller for AUV")
     parser.add_argument("--ip", type=str, default="100.64.24.56", help="IP address for DBPackage")
     parser.add_argument("--port", type=int, default=5000, help="Port for DBPackage")
+    parser.add_argument("--config", type=str, default="configs/controller.json", help="Path to controller configuration file")
     parser.add_argument("--just-print", action="store_true", help="Just print the output data, don't send to DBPackage")
     parser.add_argument("--print-raw", action="store_true", help="Print the raw joystick data")
     parser.add_argument("--print-output", action="store_true", help="Print the output data")
@@ -179,11 +189,10 @@ if __name__ == "__main__":
     parser.add_argument("--no-print", action="store_true", help="Don't print anything")
     parser.add_argument("--print-interval", type=float, default=0.1, help="Interval for printing data (in seconds)")
     args = parser.parse_args()
-    controller = Controller(args.ip, args.port)
+    controller = Controller(args.ip, args.port, args.config)
     try:
-        joystick_config = controller.parse_config("configs/controller.json")
         while True:
-            controller.parse_output_data(joystick_config)
+            controller.parse_output_data()
 
             # Handle printing options
             if args.print_raw or args.print_both:
