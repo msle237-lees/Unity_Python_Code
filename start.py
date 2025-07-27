@@ -120,12 +120,12 @@ def main():
     parser.add_argument('--print-mode', choices=['none', 'raw', 'output', 'both', 'just'], default='output')
     parser.add_argument('--print-interval', type=float, default=0.1)
 
-    parser.add_argument('--expert-path-creator', action='store_true')
+    parser.add_argument('--exc', action='store_true')
 
     args = parser.parse_args()
 
     try:
-        if args.run_db:
+        if args.db:
             flask_cmd = [sys.executable, 'modules/DBPackage.py', '--host', args.db_host, '--port', str(args.db_port)]
             launch_subprocess(flask_cmd, 'DBPackage')
 
@@ -145,7 +145,7 @@ def main():
         else:
             logging.info("Skipping DBPackage module as per command line arguments.")
 
-        if args.runHWI:
+        if args.hwi:
             hwi_cmd = [sys.executable, 'modules/HardwareInterface.py', '--unity_port', str(args.unity_port),
                        '--inputs_url', f"http://{args.db_host}", '--inputs_port', str(args.db_port)]
             if args.test:
@@ -166,7 +166,7 @@ def main():
         else:
             logging.info("Skipping Trainer module as per command line arguments.")
 
-        if args.runController:
+        if args.controller:
             ctrl_cmd = [sys.executable, 'start.py', '--ip', args.db_host, '--port', str(args.db_port),
                         '--print-interval', str(args.print_interval)]
             if args.print_mode == 'none':
@@ -184,7 +184,7 @@ def main():
         else:
             logging.info("Skipping Controller module as per command line arguments.")
 
-        if args.expert_path_creator:
+        if args.exc:
             expert_cmd = [sys.executable, 'expert_path_creator.py']
             launch_subprocess(expert_cmd, 'ExpertPathCreator')
 
