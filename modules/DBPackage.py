@@ -1,325 +1,190 @@
+## @file
+#  @brief Flask API for storing and retrieving actions and expert paths.
+#  This API is used to interact with a Unity simulation or similar agents by posting actions and expert paths,
+#  and retrieving the most recent ones from a SQLite database.
+
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 
 from datetime import datetime
 from typing import List, Dict, Any
 import argparse
-
 import logging
 import sys
 import os
 
-# Initialize Flask app and SQLAlchemy
+## Initialize the Flask application
 app = Flask(__name__)
 
+## Configure SQLite as the database engine
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'  # Use SQLite for simplicity
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+## Initialize SQLAlchemy with the Flask app
 db = SQLAlchemy(app)
 
-# Suppress all Flask and Werkzeug logs
+## Suppress all logs from Flask's Werkzeug server
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-# Redirect stdout and stderr
+## Redirect all stdout and stderr to null (suppress console output)
 sys.stdout = open(os.devnull, 'w')
 sys.stderr = open(os.devnull, 'w')
 
-# Inputs class to store the submarine's input data (X, Y, Z, Roll, Pitch, Yaw, Arm, S1, S2, S3)
+## @class Inputs
+#  @brief SQLAlchemy model for storing agent actions. \n
+#         The Inputs table is used to store the actions taken by the agent.
+#         step_index: Index of the action step
+#         direction: Direction taken by the agent
+#         force_level: Force level applied
 class Inputs(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    datetime = db.Column(db.DateTime)
-    X = db.Column(db.Float, nullable=False)
-    Y = db.Column(db.Float, nullable=False)
-    Z = db.Column(db.Float, nullable=False)
-    Roll = db.Column(db.Float, nullable=False)
-    Pitch = db.Column(db.Float, nullable=False)
-    Yaw = db.Column(db.Float, nullable=False)
-    Arm = db.Column(db.Float, nullable=False)
-    S1 = db.Column(db.Float, nullable=False)
-    S2 = db.Column(db.Float, nullable=False)
-    S3 = db.Column(db.Float, nullable=False)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True) # ///< Primary key ID
+    step_index = db.Column(db.Integer)  # ///< Index of the action step
+    direction = db.Column(db.String(1024))  # ///< Directions taken by the agent, stored as comma-separated string
+    force_level = db.Column(db.Integer)  # ///< Force level applied
+    X = db.Column(db.Float)  # ///< X-axis force
+    Y = db.Column(db.Float)  # ///< Y-axis force
+    Z = db.Column(db.Float)  # ///< Z-axis force
+    Roll = db.Column(db.Float)  # ///< Roll force
+    Pitch = db.Column(db.Float)  # ///< Pitch force
+    Yaw = db.Column(db.Float)  # ///< Yaw force
+    S1 = db.Column(db.Float)  # ///< S1 force
+    S2 = db.Column(db.Float)  # ///< S2 force
+    S3 = db.Column(db.Float)  # ///< S3 force
+    arm = db.Column(db.Integer)  # ///< Arm state (0 or 1)
 
     def __repr__(self):
-        return f'<Inputs {self.datetime}, {self.X}, {self.Y}, {self.Z}, {self.Roll}, {self.Pitch}, {self.Yaw}, {self.Arm}, {self.S1}, {self.S2}, {self.S3}>'
+        return f"Inputs(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, arm={self.arm})"
 
-# Position class to store the submarine's position data (X, Y, Z)
-class Position(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    datetime = db.Column(db.DateTime)
-    X = db.Column(db.Float, nullable=False)
-    Y = db.Column(db.Float, nullable=False)
-    Z = db.Column(db.Float, nullable=False)
-
-    def __repr__(self):
-        return f'<Position {self.datetime}, {self.X}, {self.Y}, {self.Z}>'
-
-# Rotation class to store the submarine's rotation data (Roll, Pitch, Yaw)
-class Rotation(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    datetime = db.Column(db.DateTime)
-    Roll = db.Column(db.Float, nullable=False)
-    Pitch = db.Column(db.Float, nullable=False)
-    Yaw = db.Column(db.Float, nullable=False)
-
-    def __repr__(self):
-        return f'<Rotation {self.datetime}, {self.Roll}, {self.Pitch}, {self.Yaw}>'
-
-# Velocity class to store the submarine's velocity data (Vx, Vy, Vz)  
-class Velocity(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    datetime = db.Column(db.DateTime)
-    Vx = db.Column(db.Float, nullable=False)
-    Vy = db.Column(db.Float, nullable=False)
-    Vz = db.Column(db.Float, nullable=False)
+## @class ExpertPath
+#  @brief SQLAlchemy model for storing expert demonstration data.
+#         The ExpertPath table is used to store the expert demonstration data.
+#         id: Primary key ID
+#         step_index: Index of the expert step
+#         direction: Direction taken by the expert
+#         force_level: Force level applied by the expert
+class ExpertPath(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # ///< Primary key ID
+    step_index = db.Column(db.Integer)  # ///< Index of the expert step
+    direction = db.Column(db.String(255))  # ///< Direction taken by the expert
+    force_level = db.Column(db.Integer)  # ///< Force level applied
+    X = db.Column(db.Float)  # ///< X-axis force
+    Y = db.Column(db.Float)  # ///< Y-axis force
+    Z = db.Column(db.Float)  # ///< Z-axis force
+    Roll = db.Column(db.Float)  # ///< Roll force
+    Pitch = db.Column(db.Float)  # ///< Pitch force
+    Yaw = db.Column(db.Float)  # ///< Yaw force
+    S1 = db.Column(db.Float)  # ///< S1 force
+    S2 = db.Column(db.Float)  # ///< S2 force
+    S3 = db.Column(db.Float)  # ///< S3 force
+    arm = db.Column(db.Integer)  # ///< Arm state (0 or 1)
 
     def __repr__(self):
-        return f'<Velocity {self.datetime}, {self.Vx}, {self.Vy}, {self.Vz}>'
+        return f"ExpertPath(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, arm={self.arm})"
 
-class Gate(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    distance = db.Column(db.Float, nullable=False)
-    angle = db.Column(db.Float, nullable=False)
+## @brief Route to store an agent's action in the database.
+#  @return JSON response with success message and HTTP status code.
+@app.route('/action', methods=['POST'])
+def action():
+    """
+    Receive an action from the agent and store it in the database.
+    """
+    data = request.json
+    new_input = Inputs(
+        step_index=data['step_index'],
+        direction=data['direction'],
+        force_level=data['force_level'],
+        X=data.get('X', 0.0),
+        Y=data.get('Y', 0.0),
+        Z=data.get('Z', 0.0),
+        Roll=data.get('Roll', 0.0),
+        Pitch=data.get('Pitch', 0.0),
+        Yaw=data.get('Yaw', 0.0),
+        S1=data.get('S1', 0.0),
+        S2=data.get('S2', 0.0),
+        S3=data.get('S3', 0.0),
+        arm=data['arm']
+    )
+    db.session.add(new_input)
+    db.session.commit()
+    return jsonify({"message": "Action received and stored successfully"}), 200
 
-    def __repr__(self):
-        return f'<Gate {self.id}, Distance: {self.distance}, Angle: {self.angle}>'
-    
-class Pole(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    distance = db.Column(db.Float, nullable=False)
-    angle = db.Column(db.Float, nullable=False)
-
-    def __repr__(self):
-        return f'<Pole {self.id}, Distance: {self.distance}, Angle: {self.angle}>'
-
-# Routes for inputs data
-@app.route('/inputs', methods=['GET'])
-def get_inputs():
+## @brief Route to retrieve the most recent agent action from the database.
+#  @return JSON response with the latest Inputs data and HTTP status code.
+@app.route('/action', methods=['GET'])
+def action():
+    """
+    Get the latest action from the database.
+    """
     latest_input = Inputs.query.order_by(Inputs.id.desc()).first()
-    if latest_input:
-        return jsonify({
-            'datetime': latest_input.datetime,
-            'X': latest_input.X,
-            'Y': latest_input.Y,
-            'Z': latest_input.Z,
-            'Roll': latest_input.Roll,
-            'Pitch': latest_input.Pitch,
-            'Yaw': latest_input.Yaw,
-            'Arm': latest_input.Arm,
-            'S1': latest_input.S1,
-            'S2': latest_input.S2,
-            'S3': latest_input.S3
-        })
-    else:
-        return jsonify({'message': 'No data available'}), 404
+    return jsonify({
+        "step_index": latest_input.step_index,
+        "direction": latest_input.direction,
+        "force_level": latest_input.force_level,
+        "X": latest_input.X,
+        "Y": latest_input.Y,
+        "Z": latest_input.Z,
+        "Roll": latest_input.Roll,
+        "Pitch": latest_input.Pitch,
+        "Yaw": latest_input.Yaw,
+        "S1": latest_input.S1,
+        "S2": latest_input.S2,
+        "S3": latest_input.S3,
+        "arm": latest_input.arm
+    }), 200
 
-from datetime import datetime
-
-@app.route('/inputs', methods=['POST'])
-def add_input():
-    data = request.get_json()
-    if not data:
-        return jsonify({'message': 'No data provided'}), 400
-
-    try:
-        # Use provided datetime if available, otherwise default to now
-        if 'datetime' in data and data['datetime']:
-            dt = datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S')
-        else:
-            dt = datetime.utcnow()  # Or use datetime.now() if you prefer local time
-
-        new_input = Inputs(
-            datetime=dt,
-            X=data['X'],
-            Y=data['Y'],
-            Z=data['Z'],
-            Roll=data['Roll'],
-            Pitch=data['Pitch'],
-            Yaw=data['Yaw'],
-            Arm=data['Arm'],
-            S1=data['S1'],
-            S2=data['S2'],
-            S3=data['S3']
-        )
-        db.session.add(new_input)
-        db.session.commit()
-        return jsonify({'message': 'Input data added successfully'}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 400
-
-# Routes for position data
-@app.route('/position', methods=['GET'])
-def get_position():
-    latest_position = Position.query.order_by(Position.id.desc()).first()
-    if latest_position:
-        return jsonify({
-            'datetime': latest_position.datetime,
-            'X': latest_position.X,
-            'Y': latest_position.Y,
-            'Z': latest_position.Z
-        })
-    else:
-        return jsonify({'message': 'No data available'}), 404
-
-@app.route('/position', methods=['POST'])
-def add_position():
-    data = request.get_json()
-    if not data:
-        return jsonify({'message': 'No data provided'}), 400
-
-    try:
-        new_position = Position(
-            datetime=datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S'),
-            X=data['X'],
-            Y=data['Y'],
-            Z=data['Z']
-        )
-        db.session.add(new_position)
-        db.session.commit()
-        return jsonify({'message': 'Position data added successfully'}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 400
-    
-# Routes for rotation data
-@app.route('/rotation', methods=['GET'])
-def get_rotation():
-    latest_rotation = Rotation.query.order_by(Rotation.id.desc()).first()
-    if latest_rotation:
-        return jsonify({
-            'datetime': latest_rotation.datetime,
-            'Roll': latest_rotation.Roll,
-            'Pitch': latest_rotation.Pitch,
-            'Yaw': latest_rotation.Yaw
-        })
-    else:
-        return jsonify({'message': 'No data available'}), 404
-    
-@app.route('/rotation', methods=['POST'])
-def add_rotation():
-    data = request.get_json()
-    if not data:
-        return jsonify({'message': 'No data provided'}), 400
-
-    try:
-        new_rotation = Rotation(
-            datetime=datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S'),
-            Roll=data['Roll'],
-            Pitch=data['Pitch'],
-            Yaw=data['Yaw']
-        )
-        db.session.add(new_rotation)
-        db.session.commit()
-        return jsonify({'message': 'Rotation data added successfully'}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 400
-    
-# Routes for velocity data
-@app.route('/velocity', methods=['GET'])
-def get_velocity():
-    latest_velocity = Velocity.query.order_by(Velocity.id.desc()).first()
-    if latest_velocity:
-        return jsonify({
-            'datetime': latest_velocity.datetime,
-            'Vx': latest_velocity.Vx,
-            'Vy': latest_velocity.Vy,
-            'Vz': latest_velocity.Vz
-        })
-    else:
-        return jsonify({'message': 'No data available'}), 404
-    
-@app.route('/velocity', methods=['POST'])
-def add_velocity():
-    data = request.get_json()
-    if not data:
-        return jsonify({'message': 'No data provided'}), 400
-
-    try:
-        new_velocity = Velocity(
-            datetime=datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S'),
-            Vx=data['Vx'],
-            Vy=data['Vy'],
-            Vz=data['Vz']
-        )
-        db.session.add(new_velocity)
-        db.session.commit()
-        return jsonify({'message': 'Velocity data added successfully'}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 400
-
-@app.route('/get_expert_path', methods=['GET'])
-def get_expert_path():
+## @brief When the route is accessed, it gets the most recent expert path (From Arm = 0 to Arm = 1 and then Arm = 1 back to Arm = 0) from the database.
+#  @return JSON response with the latest ExpertPath data and HTTP status code.
+@app.route('/expert_path', methods=['GET'])
+def expert_path():
     """
-    Returns the expert path as a list of dictionaries.
-    Each dictionary contains position, rotation, velocity, and input data.
+    Get the latest expert path from the database.
     """
-    expert_path = []
+    # Get all ExpertPath entries ordered by id
+    expert_steps = ExpertPath.query.order_by(ExpertPath.id.asc()).all()
 
-    inputs = Inputs.query.all()
-    positions = Position.query.all()
-    rotations = Rotation.query.all()
-    velocities = Velocity.query.all()
+    # Find the indices where arm transitions from 0 to 1 and 1 to 0
+    arm_transitions = []
+    prev_direction = None
+    for idx, step in enumerate(expert_steps):
+        if prev_direction is not None and step.direction != prev_direction:
+            arm_transitions.append(idx)
+        prev_direction = step.direction
 
-    for i in range(max(len(inputs), len(positions), len(rotations), len(velocities))):
-        step = {
-            "datetime": inputs[i].datetime if i < len(inputs) else None,
-            "X": positions[i].X if i < len(positions) else None,
-            "Y": positions[i].Y if i < len(positions) else None,
-            "Z": positions[i].Z if i < len(positions) else None,
-            "Roll": rotations[i].Roll if i < len(rotations) else None,
-            "Pitch": rotations[i].Pitch if i < len(rotations) else None,
-            "Yaw": rotations[i].Yaw if i < len(rotations) else None,
-            "Vx": velocities[i].Vx if i < len(velocities) else None,
-            "Vy": velocities[i].Vy if i < len(velocities) else None,
-            "Vz": velocities[i].Vz if i < len(velocities) else None,
-            "S1": inputs[i].S1 if i < len(inputs) else None,
-            "S2": inputs[i].S2 if i < len(inputs) else None,
-            "S3": inputs[i].S3 if i < len(inputs) else None,
-            "Arm": inputs[i].Arm if i < len(inputs) else None
+    # Select the segment from first transition (0->1) to second transition (1->0)
+    if len(arm_transitions) >= 2:
+        latest_expert_path = expert_steps[arm_transitions[0]:arm_transitions[1]+1]
+    else:
+        latest_expert_path = expert_steps  # fallback: return all if transitions not found
+    data = {}
+    for step in latest_expert_path:
+        data[step.id] = {
+            "step_index": step.step_index,
+            "direction": step.direction,
+            "force_level": step.force_level,
+            "X": step.X,
+            "Y": step.Y,
+            "Z": step.Z,
+            "Roll": step.Roll,
+            "Pitch": step.Pitch,
+            "Yaw": step.Yaw,
+            "S1": step.S1,
+            "S2": step.S2,
+            "S3": step.S3,
+            "arm": step.arm
         }
-        expert_path.append(step)
+    return jsonify(data), 200
 
-    return jsonify(expert_path)
-
-
-@app.route('/get_inputs_only', methods=['GET'])
-def get_inputs_only():
-    """
-    Returns only the human pilot input data from the Inputs table.
-    Each dictionary contains the actual control inputs used by the human pilot.
-    """
-    inputs = Inputs.query.all()
-    input_data = []
-
-    for input_record in inputs:
-        step = {
-            "datetime": input_record.datetime.isoformat() if input_record.datetime else None,
-            "X": input_record.X,
-            "Y": input_record.Y,
-            "Z": input_record.Z,
-            "Roll": input_record.Roll,
-            "Pitch": input_record.Pitch,
-            "Yaw": input_record.Yaw,
-            "S1": input_record.S1,
-            "S2": input_record.S2,
-            "S3": input_record.S3,
-            "Arm": input_record.Arm
-        }
-        input_data.append(step)
-
-    return jsonify(input_data)
-
-# Initialize the database and create tables
+## @brief Ensure all tables are created before the first request.
 with app.app_context():
     db.create_all()
 
-# Configure the arguments for the Flask app
+## @brief Set up argument parser for host and port configuration.
 parser = argparse.ArgumentParser(description="Flask API for Unity Interface")
 parser.add_argument("--port", type=int, default=5000, help="Port for Flask API")
 parser.add_argument("--host", type=str, default="0.0.0.0", help="Host for Flask API")
 args = parser.parse_args()
 
+## @brief Entry point of the Flask application.
 if __name__ == "__main__":
     app.run(host=args.host, port=args.port, debug=False)

@@ -72,7 +72,6 @@ class EnvPackage(gym.Env):
         @param expert_path_file Path to JSON file with expert trajectory
         """
         self.dbURL = f"http://{dbIP}:{dbPort}"
-        self.unityURL = f"http://{unityIP}:{unityPort}"
 
         self.posURL = f"{self.dbURL}/position"
         self.rotURL = f"{self.dbURL}/rotation"
@@ -282,8 +281,6 @@ class EnvPackage(gym.Env):
         pos = self._getSubPos(self.posURL)
         rot = self._getSubRot(self.rotURL)
         vel = self._getSubVel(self.velURL)
-
-
 
         observation = np.array(self.getObservation(pos, rot, vel), dtype=np.float32)
 

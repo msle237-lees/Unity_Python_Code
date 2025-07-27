@@ -25,13 +25,12 @@ def main():
         trainer_cmd.append('--fresh')
 
     subprocesses = [
-        ['python', 'modules/DBPackage.py', '--host', args.ip, '--port', str(args.port)],           # 0
-        ['python', 'modules/AIPackage.py', '--host', args.ip, '--port', str(args.port)],          # 1
-        trainer_cmd,                                                                               # 2
-        ['python', 'modules/EvalPackage.py'],                                                      # 3
-        ['python', 'modules/HardwareInterface.py', '--unity_ip', args.unity_ip, '--unity_port', str(args.unity_port), '--inputs_url', args.ip, '--inputs_port', str(args.port)],  # 4
-        ['python', 'modules/Virtual_Cameras.py'], # 5
-        ['python', 'expert_path_creator.py', '--host', args.ip, '--port', str(args.port), '--output', args.output] # 6
+        ['python', 'modules/DBPackage.py'],           # 0
+        ['python', 'modules/AIPackage.py'],           # 1
+        trainer_cmd,                                   # 2
+        ['python', 'modules/EvalPackage.py'],         # 3
+        ['python', 'modules/NewHardwareInterface.py'],   # 4
+        ['python', 'expert_path_creator.py']          # 5
     ]
 
     # Always start the database first
@@ -39,7 +38,7 @@ def main():
     time.sleep(10)
 
     if args.start_hardware:
-        subprocess.Popen(subprocesses[4])  # Fixed: was 3, should be 4
+        subprocess.Popen(subprocesses[4])
         time.sleep(5)
     if args.start_ai:
         subprocess.Popen(subprocesses[1])
@@ -50,7 +49,7 @@ def main():
         subprocess.Popen(subprocesses[3])
         time.sleep(5)
     if args.get_expert_path:
-        subprocess.Popen(subprocesses[6])
+        subprocess.Popen(subprocesses[5])
         time.sleep(5)
 
     while True:

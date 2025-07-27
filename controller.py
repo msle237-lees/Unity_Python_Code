@@ -6,7 +6,8 @@ import json
 import os
 
 def truncate_small_values(data, threshold=1e-3):
-    return {k: (0.0 if abs(v) < threshold else v) for k, v in data.items()}
+    direction_force = Controller().convertToDirectionForce()
+    return direction_force
 
 def apply_deadzone(value, deadzone=0.1):
     return 0.0 if abs(value) < deadzone else value
@@ -23,7 +24,7 @@ class Controller:
         self.axis_min = -10.0
         self.axis_max = 10.0
         self.increment_step = 0.1  # Step size for S1/S2 buttons
-        self.db_url = f"http://{ip}:{port}/inputs"
+        self.db_url = f"http://{ip}:{port}/action"
 
         self.joystick = None
         while self.joystick is None:
@@ -114,6 +115,46 @@ class Controller:
                 "S2": 0.0,
                 "S3": 0.0
             })
+
+    def convertToDirectionForce(self):
+        """
+        Converts the output data to a format suitable for sending to Unity.
+        """
+        direction = []
+        force_level = 0
+
+        if self.output_data["X"] > 0:
+            direction.append("forward")
+            force_level = max(force_level, abs(self.output_data["X"]))
+        elif self.output_data["X"] < 0:
+            direction.append("backward")
+            force_level = max(force_level, abs(self.output_data["X"]))
+
+        if self.output_data["Y"] > 0:
+            direction.append("up")
+            force_level = max(force_level, abs(self.output_data["Y"]))
+        elif self.output_data["Y"] < 0:
+            direction.append("down")
+            force_level = max(force_level, abs(self.output_data["Y"]))
+
+        if self.output_data["Z"] > 0:
+            direction.append("right")
+            force_level = max(force_level, abs(self.output_data["Z"]))
+        elif self.output_data["Z"] < 0:
+            direction.append("left")
+            force_level = max(force_level, abs(self.output_data["Z"]))
+
+        if self.output_data["Yaw"] > 0:
+            direction.append("yaw_right")
+            force_level = max(force_level, abs(self.output_data["Yaw"]))
+        elif self.output_data["Yaw"] < 0:
+            direction.append("yaw_left")
+            force_level = max(force_level, abs(self.output_data["Yaw"]))
+
+        return {
+            "direction": direction,
+            "force_level": int(force_level)
+        }
 
     def send_data(self):
         """
