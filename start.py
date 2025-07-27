@@ -176,7 +176,7 @@ def main():
             logging.info("Skipping Trainer module as per command line arguments.")
 
         if args.controller:
-            ctrl_cmd = [sys.executable, 'start.py', '--ip', args.db_host, '--port', str(args.db_port),
+            ctrl_cmd = [sys.executable, 'controller.py', '--ip', args.db_host, '--port', str(args.db_port),
                         '--print-interval', str(args.print_interval)]
             if args.print_mode == 'none':
                 ctrl_cmd.append('--no-print')
