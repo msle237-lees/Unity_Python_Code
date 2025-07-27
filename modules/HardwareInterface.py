@@ -4,169 +4,138 @@ import argparse
 from dataclasses import dataclass
 from peaceful_pie.unity_comms import UnityComms
 
-# These dataclasses are used to represent the submarine's position, rotation, and velocity.
-# They are supposed to match the structure of the data returned by Unity.
-@dataclass
-class SubPos:
-    x: float
-    y: float
-    z: float
-
-@dataclass
-class SubRot:
-    roll: float
-    pitch: float
-    yaw: float
-
-@dataclass
-class SubVel:
-    x: float
-    y: float
-    z: float
-    roll: float
-    pitch: float
-    yaw: float
-
 
 class unityInterface:
-    def __init__(self, unity_port: str = 9999, inputs_url: str = '10.0.0.43', inputs_port: int = 5000) -> None:
-        self.unity_comms = UnityComms(port=unity_port)
-        self.url = f'http://{inputs_url}:{inputs_port}/inputs'
-        self.pos_url = f'http://{inputs_url}:{inputs_port}/position'
-        self.rot_url = f'http://{inputs_url}:{inputs_port}/rotation'
-        self.vel_url = f'http://{inputs_url}:{inputs_port}/velocity'
-
-    def get_submarine_position(self) -> SubPos:
-        """Get the submarine position from Unity."""
-        res: SubPos = self.unity_comms.getSubPos(ResultClass=SubPos)
-        return res
-
-    def get_submarine_rotation(self) -> SubRot:
-        """Get the submarine rotation from Unity."""
-        res: SubRot = self.unity_comms.getSubRot(ResultClass=SubRot)
-        return res
-    
-    def get_submarine_velocity(self) -> SubVel:
-        """Get the submarine velocity from Unity."""
-        res: SubVel = self.unity_comms.getSubMeasuredVel(ResultClass=SubVel)
-        return res
-    
-    def set_submarine_velocity(self, velocity: SubVel) -> None:
+    def __init__(self, unity_port: str = 9999, \
+                    inputs_url: str = 'localhost', \
+                        inputs_port: int = 5000, \
+                            test : bool = False) -> None:
         """
-            Set the submarine velocity in Unity.
-            X = F (-1) / B (1)
-            Y = U (1) / D (-1)
-            Z = R (1) / L (-1)
-            Roll = R / L
-            Pitch = F / B
-            Yaw = R / L
+        
         """
-        velocity.x = velocity.x * -1
-        self.unity_comms.setSubSetVel(subSetVel=velocity)
-
-    def restart_sub_position(self, data) -> None:
-        """Restart the submarine position in Unity."""
-        if data['arm']:
-            pass
+        if test:
+            self.unityComms = None
+            print("Running in test mode, UnityComms will not be initialized.")
         else:
-            self.unity_comms.restartPosition()
+            self.unityComms = UnityComms(port=unity_port)
+        self.inputsURL = f'http://{inputs_url}:{inputs_port}/action'
+        self.test = test
 
-    def get_data(self) -> SubVel:
-        """Get the input data from the RL server."""
-        """This method should be used during testing to get the input data from the RL server."""
-        """It fetches the data from the specified URL and converts it into a SubVel dataclass instance."""
-        response = requests.get(self.url)
+    def _restartSubPosition(self) -> None:
+        """
+        Restart the submarine position in Unity.
+        """
+        self.unityComms.restartSubPos()
+
+    def _getDBInputs(self) -> dict:
+        """
+        Get the latest inputs from the database.
+        """
+        response = requests.get(self.inputsURL)
         if response.status_code == 200:
-            data = response.json()
-            if isinstance(data, list) and data:
-                data = data[-1]
-                # print(data.keys())
-            if isinstance(data, dict):
-                # Convert keys to lowercase, exclude the 'datetime' and 'id' keys, and convert the remaining dictionary to a dataclass instance
-                data = {k.lower(): v for k, v in data.items() if k.lower() not in ['datetime', 'id', 's1', 's2', 's3']}
-                self.restart_sub_position(data)
-                del data['arm']
-                return SubVel(**data)
-        return None
-    
-    def post_data(self, subvel : SubVel, subpos : SubPos, subrot : SubRot) -> None:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get inputs: {response.status_code} {response.text}")
+
+    def _sendToUnity(self, data: dict) -> None:
         """
-        @brief Post the submarine's position, rotation, and velocity to the DBPackage.
-        @param subvel: The submarine's velocity.
-        @param subpos: The submarine's position.
-        @param subrot: The submarine's rotation.
-        @return None
+        Send data to Unity.
         """
-        pos_data = {
-            'datetime': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'X': subpos.x,
-            'Y': subpos.y,
-            'Z': subpos.z
-        }
-        post_request = requests.post(self.pos_url, json=pos_data)
-        if post_request.status_code == 201:
-            # print("Position data sent successfully.")
-            pass
+        if not data:
+            raise ValueError("Data to send to Unity cannot be empty.")
+
+        # If the data is not empty, convert from direction and force levels 
+        # to normal velocity vectors
+        direction = data.get('direction')
+        force_level = data.get('force_level', 0)
+
+        # Support combinational control: direction can be a list or a string
+        if isinstance(direction, str):
+            directions = [direction]
+        elif isinstance(direction, list):
+            directions = direction
         else:
-            print(f"Failed to send position data. Status code: {post_request.status_code}")
-        rot_data = {
-            'datetime': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'Roll': subrot.roll,
-            'Pitch': subrot.pitch,
-            'Yaw': subrot.yaw
+            raise ValueError("Direction must be a string or a list of strings.")
+
+        velocity = {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "roll": 0,
+            "pitch": 0,
+            "yaw": 0
         }
-        post_request = requests.post(self.rot_url, json=rot_data)
-        if post_request.status_code == 201:
-            # print("Rotation data sent successfully.")
-            pass
+
+        for dir in directions:
+            if dir == 'forward':
+                velocity["x"] += force_level
+            elif dir == 'backward':
+                velocity["x"] -= force_level
+            elif dir == 'up':
+                velocity["y"] += force_level
+            elif dir == 'down':
+                velocity["y"] -= force_level
+            elif dir == 'right':
+                velocity["z"] += force_level
+            elif dir == 'left':
+                velocity["z"] -= force_level
+            elif dir == 'yaw_right':
+                velocity["yaw"] += force_level
+            elif dir == 'yaw_left':
+                velocity["yaw"] -= force_level
+
+        # update the class variable with the new velocity
+        self.velocity = velocity
+
+        if self.test:
+            print(f"Test mode: would send {data} to Unity as velocity {velocity}")
         else:
-            print(f"Failed to send rotation data. Status code: {post_request.status_code}")
-        vel_data = {
-            'datetime': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'Vx': subvel.x,
-            'Vy': subvel.y,
-            'Vz': subvel.z,
-            'Roll': subvel.roll,
-            'Pitch': subvel.pitch,
-            'Yaw': subvel.yaw
-        }
-        post_request = requests.post(self.vel_url, json=vel_data)
-        if post_request.status_code == 201:
-            # print("Velocity data sent successfully.")
-            pass
-        else:
-            print(f"Failed to send velocity data. Status code: {post_request.status_code}")
-        # print(f"Data sent successfully: {data}")
-    
+            self.unityComms.setSubMeasuredVel(velocity)
+
     def run(self) -> None:
-        while True:
-            # Get the submarine position, rotation, and velocity from Unity
-            sub_pos = self.get_submarine_position()
-            sub_rot = self.get_submarine_rotation()
-            sub_vel = self.get_submarine_velocity()
-
-            # Get the input data from the RL server
-            input_data = self.get_data()
-            if input_data:
-                # Set the submarine's velocity in Unity
-                self.set_submarine_velocity(input_data)
-
-            # Post the submarine's position, rotation, and velocity to the DBPackage
-            self.post_data(sub_vel, sub_pos, sub_rot)
-
-            # Print the submarine's position, rotation, and velocity
-            print(f"Position: {sub_pos}, Rotation: {sub_rot}, Velocity: {sub_vel}, Inputs: {input_data}")
-
-            time.sleep(0.1) # Sleep for a short duration to avoid overwhelming the server
+        """
+        Main loop to run the Unity interface.
+        """
+        if self.test:
+            print("Test mode: Enter multiple directions separated by commas (e.g., forward,left,up)")
+            while True:
+                direction_input = input("Enter direction(s): ")
+                directions = [d.strip() for d in direction_input.split(',') if d.strip()]
+                force_level_input = input("Enter force level (0, 25, 50, 75, 100): ")
+                try:
+                    force_level = int(force_level_input)
+                except ValueError:
+                    print("Invalid force level. Please enter a number.")
+                    continue
+                valid_directions = {'forward', 'backward', 'left', 'right', 'up', 'down', 'yaw_right', 'yaw_left'}
+                if not all(d in valid_directions for d in directions):
+                    print(f"Invalid direction(s). Valid options: {', '.join(valid_directions)}")
+                    continue
+                if force_level not in [0, 25, 50, 75, 100]:
+                    print("Invalid force level. Please try again.")
+                    continue
+                action = {
+                    "direction": directions if len(directions) > 1 else directions[0],
+                    "force_level": force_level
+                }
+                self._sendToUnity(action)
+                time.sleep(1)
+        else:
+            while True:
+                inputs = self._getDBInputs()
+                if inputs['arm'] == 0:
+                    self._restartSubPosition()
+                else:
+                    self._sendToUnity(inputs)
+                time.sleep(0.1)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Unity Interface")
-    parser.add_argument("--unity_ip", type=str, default="localhost", help="IP address for Unity communication")
-    parser.add_argument("--unity_port", type=int, default=9999, help="Port for Unity communication")
-    parser.add_argument("--inputs_url", type=str, default="10.0.0.43", help="URL for RL server")
-    parser.add_argument("--inputs_port", type=int, default=5000, help="Port for RL server")
+    parser = argparse.ArgumentParser(description="Unity Interface for AUV")
+    parser.add_argument('--unity_port', type=int, default=9999, help='Port for Unity communication (default: 9999)')
+    parser.add_argument('--inputs_url', type=str, default='localhost', help='URL for inputs server (default: localhost)')
+    parser.add_argument('--inputs_port', type=int, default=5000, help='Port for inputs server (default: 5000)')
+    parser.add_argument('--test', action='store_true', help='Run in test mode without UnityComms')
     args = parser.parse_args()
 
-    unity_interface = unityInterface(unity_port=args.unity_port, inputs_url=args.inputs_url, inputs_port=args.inputs_port)
-    
-    unity_interface.run()
+    interface = unityInterface(unity_port=args.unity_port, inputs_url=args.inputs_url, inputs_port=args.inputs_port, test=args.test)
+    interface.run()
