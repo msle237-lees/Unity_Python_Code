@@ -103,20 +103,20 @@ def main():
     """
     parser = argparse.ArgumentParser(description="Run AUV Training and Evaluation modules")
 
-    parser.add_argument('--run-db', action='store_true', help='Run the DBPackage module')
+    parser.add_argument('--db', action='store_true', help='Run the DBPackage module')
     parser.add_argument('--db-host', type=str, default='localhost')
     parser.add_argument('--db-port', type=int, default=5000)
 
-    parser.add_argument('--runHWI', action='store_true')
+    parser.add_argument('--hwi', action='store_true')
     parser.add_argument('--unity-port', type=int, default=9999)
     parser.add_argument('--test', action='store_true')
 
-    parser.add_argument('--runTrainer', action='store_true')
+    parser.add_argument('--trainer', action='store_true')
     parser.add_argument('--continue-from', action='store_true')
     parser.add_argument('--timesteps', type=int, default=1000000)
     parser.add_argument('--fresh', action='store_true')
 
-    parser.add_argument('--runController', action='store_true')
+    parser.add_argument('--controller', action='store_true')
     parser.add_argument('--print-mode', choices=['none', 'raw', 'output', 'both', 'just'], default='output')
     parser.add_argument('--print-interval', type=float, default=0.1)
 
