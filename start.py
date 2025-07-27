@@ -136,11 +136,17 @@ def main():
                 "force_level": 0.5,
                 "arm": 0
             }
-            response = requests.post(f"http://{args.db_host}:{args.db_port}/action", json=payload)
-            while response.status_code != 200:
-                logging.warning("DBPackage is not ready yet...")
+
+            while True:
+                try:
+                    response = requests.post(f"http://{args.db_host}:{args.db_port}/expert_path", json=payload)
+                    if response.status_code == 200:
+                        logging.info("DBPackage is running and ready to accept requests.")
+                        break
+                except requests.ConnectionError:
+                    logging.warning("Waiting for DBPackage to start...")
                 time.sleep(1)
-                response = requests.post(f"http://{args.db_host}:{args.db_port}/action", json=payload)
+
             logging.info("DBPackage is running and ready to accept requests.")
         else:
             logging.info("Skipping DBPackage module as per command line arguments.")
