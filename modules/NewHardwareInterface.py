@@ -36,29 +36,6 @@ class unityInterface:
             return response.json()
         else:
             raise Exception(f"Failed to get inputs: {response.status_code} {response.text}")
-    
-    def _updateDB(self) -> None:
-        """
-        Update the database with the given data.
-        """
-        data = {
-            "step_index": self.step_index,  # ///< Index of the action step
-            "direction": self.direction,  # ///< Directions taken by the agent, stored as comma-separated string
-            "force_level": self.force_level,  # ///< Force level applied
-            "X": self.X,  # ///< X-axis force
-            "Y": self.Y,  # ///< Y-axis force
-            "Z": self.Z,  # ///< Z-axis force
-            "Roll": self.Roll,  # ///< Roll force
-            "Pitch": self.Pitch,  # ///< Pitch force
-            "Yaw": self.Yaw,  # ///< Yaw force
-            "S1": self.S1,  # ///< S1 force
-            "S2": self.S2,  # ///< S2 force
-            "S3": self.S3,  # ///< S3 force
-            "arm": self.arm  # ///< Arm state (0 or 1)
-        }
-        response = requests.post(self.inputsURL, json=data)
-        if response.status_code != 200:
-            raise Exception(f"Failed to update database: {response.status_code} {response.text}")
 
     def _sendToUnity(self, data: dict) -> None:
         """
@@ -113,7 +90,6 @@ class unityInterface:
         if self.test:
             print(f"Test mode: would send {data} to Unity as velocity {velocity}")
         else:
-            self._updateDB()
             self.unityComms.setSubMeasuredVel(velocity)
 
     def run(self) -> None:
