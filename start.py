@@ -5,8 +5,12 @@ import time
 import logging
 import threading
 import requests
-import termios
-import tty
+import platform
+if platform.system() == 'Windows':
+    import msvcrt
+else:
+    import termios
+    import tty
 
 # Set up logging configuration with a specific format and level
 class PackageFormatter(logging.Formatter):
@@ -73,16 +77,24 @@ def monitor_exit_keys():
     Runs in a background thread to listen for 'q', 'ESC', or Ctrl+C key presses
     and gracefully shuts down all subprocesses.
     """
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
+    if platform.system() == 'Windows':
         while True:
-            ch = sys.stdin.read(1)
-            if ch in ['q', '\x1b']:  # q or ESC
-                cleanup()
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            if msvcrt.kbhit():
+                key = msvcrt.getch()
+                if key in [b'q', b'\x1b']:  # q or ESC
+                    cleanup()
+            time.sleep(0.1)
+    else:
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            while True:
+                ch = sys.stdin.read(1)
+                if ch in ['q', '\x1b']:
+                    cleanup()
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 def main():
     """
