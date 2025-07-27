@@ -42,6 +42,16 @@ class Inputs(db.Model):
     step_index = db.Column(db.Integer)  # ///< Index of the action step
     direction = db.Column(db.String(1024))  # ///< Directions taken by the agent, stored as comma-separated string
     force_level = db.Column(db.Integer)  # ///< Force level applied
+    arm = db.Column(db.Integer)  # ///< Arm state (0 or 1)
+
+    def __repr__(self):
+        return f"Inputs(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, arm={self.arm})"
+
+class ConvertedInputs(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # ///< Primary key ID
+    step_index = db.Column(db.Integer)  # ///< Index of the action step
+    direction = db.Column(db.String(1024))  # ///< Directions taken by the agent, stored as comma-separated string
+    force_level = db.Column(db.Integer)  # ///< Force level applied
     X = db.Column(db.Float)  # ///< X-axis force
     Y = db.Column(db.Float)  # ///< Y-axis force
     Z = db.Column(db.Float)  # ///< Z-axis force
@@ -54,7 +64,7 @@ class Inputs(db.Model):
     arm = db.Column(db.Integer)  # ///< Arm state (0 or 1)
 
     def __repr__(self):
-        return f"Inputs(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, arm={self.arm})"
+        return f"ConvertedInputs(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, X={self.X}, Y={self.Y}, Z={self.Z}, Roll={self.Roll}, Pitch={self.Pitch}, Yaw={self.Yaw}, S1={self.S1}, S2={self.S2}, S3={self.S3}, arm={self.arm})"
 
 ## @class ExpertPath
 #  @brief SQLAlchemy model for storing expert demonstration data.
@@ -132,6 +142,31 @@ def action():
         "S3": latest_input.S3,
         "arm": latest_input.arm
     }), 200
+
+@app.route('/convert_action', methods=['POST'])
+def convert_action():
+    """
+    Convert the action data to a format suitable for Unity.
+    """
+    data = request.json
+    new_converted_input = ConvertedInputs(
+        step_index=data['step_index'],
+        direction=data['direction'],
+        force_level=data['force_level'],
+        X=data.get('X', 0.0),
+        Y=data.get('Y', 0.0),
+        Z=data.get('Z', 0.0),
+        Roll=data.get('Roll', 0.0),
+        Pitch=data.get('Pitch', 0.0),
+        Yaw=data.get('Yaw', 0.0),
+        S1=data.get('S1', 0.0),
+        S2=data.get('S2', 0.0),
+        S3=data.get('S3', 0.0),
+        arm=data['arm']
+    )
+    db.session.add(new_converted_input)
+    db.session.commit()
+    return jsonify({"message": "Action converted and stored successfully"}), 200
 
 ## @brief When the route is accessed, it gets the most recent expert path (From Arm = 0 to Arm = 1 and then Arm = 1 back to Arm = 0) from the database.
 #  @return JSON response with the latest ExpertPath data and HTTP status code.

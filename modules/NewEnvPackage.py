@@ -149,6 +149,12 @@ class EnvPackage(gym.Env):
         self.send_action(action)
         observation = self.get_observation()
         reward = self.calculate_reward(action)
+        # Only send action to DB if reward exceeds threshold
+        REWARD_THRESHOLD = 0.9  # tweak based on your reward scale
+
+        if reward >= REWARD_THRESHOLD:
+            self.send_action(action)
+
         terminated = self.get_terminated()
         truncated = False  # You can implement truncation logic if needed
         info = {}

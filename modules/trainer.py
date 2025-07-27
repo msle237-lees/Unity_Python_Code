@@ -10,7 +10,7 @@ import torch
 from datetime import datetime
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.torch_layers import MlpExtractor
 from EnvPackage import EnvPackage  # Adjust if in a different module
@@ -32,15 +32,14 @@ def make_env():
     """
     Create a wrapped environment instance.
     """
-    env = EnvPackage(
-        dbIP="localhost",
-        dbPort=5000,
-        unityIP="localhost",
-        unityPort=9999,
-        expert_path_file="modules/expert_paths/path_2.json"
-    )
-    return env
-
+    def _init():
+        return EnvPackage(
+            db_url="http://localhost:",
+            db_url="http://localhost:",
+            dbPort=5000,
+            expert_path_file="modules/expert_paths/path_2.json"
+        )
+    return _init
 
 def find_latest_model():
     """Find the most recent model checkpoint."""
@@ -80,7 +79,8 @@ def main():
     check_env(make_env(), warn=True)
 
     # Create vectorized environment
-    env = DummyVecEnv([make_env])
+    NUM_ENVS = os.cpu_count() or 4
+    env = SubprocVecEnv([make_env for _ in range(NUM_ENVS)])
 
     # Determine which model to load
     existing_model_path = None
