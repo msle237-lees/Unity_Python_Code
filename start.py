@@ -143,7 +143,7 @@ def main():
                 response = requests.post(f"http://{args.db_host}:{args.db_port}/action", json=payload)
             logging.info("DBPackage is running and ready to accept requests.")
         else:
-            logging.error("Skipping DBPackage module as per command line arguments.")
+            logging.info("Skipping DBPackage module as per command line arguments.")
 
         if args.runHWI:
             hwi_cmd = [sys.executable, 'modules/HardwareInterface.py', '--unity_port', str(args.unity_port),
@@ -153,7 +153,7 @@ def main():
             launch_subprocess(hwi_cmd, 'HardwareInterface')
             time.sleep(2)
         else:
-            logging.error("Skipping Hardware Interface module as per command line arguments.")
+            logging.info("Skipping Hardware Interface module as per command line arguments.")
 
         if args.runTrainer:
             trainer_cmd = [sys.executable, 'modules/trainer.py', '--timesteps', str(args.timesteps)]
@@ -164,7 +164,7 @@ def main():
             launch_subprocess(trainer_cmd, 'Trainer')
             time.sleep(2)
         else:
-            logging.error("Skipping Trainer module as per command line arguments.")
+            logging.info("Skipping Trainer module as per command line arguments.")
 
         if args.runController:
             ctrl_cmd = [sys.executable, 'start.py', '--ip', args.db_host, '--port', str(args.db_port),
@@ -182,7 +182,7 @@ def main():
             launch_subprocess(ctrl_cmd, 'Controller')
             time.sleep(2)
         else:
-            logging.error("Skipping Controller module as per command line arguments.")
+            logging.info("Skipping Controller module as per command line arguments.")
 
         if args.expert_path_creator:
             expert_cmd = [sys.executable, 'expert_path_creator.py']
