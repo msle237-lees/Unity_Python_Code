@@ -6,8 +6,10 @@ import json
 import os
 
 def truncate_small_values(data, threshold=1e-3):
-    direction_force = Controller().convertToDirectionForce()
-    return direction_force
+    """
+    Truncates small values in the output data dictionary.
+    """
+    return {k: 0.0 if abs(v) < threshold else v for k, v in data.items()}
 
 def apply_deadzone(value, deadzone=0.1):
     return 0.0 if abs(value) < deadzone else value
@@ -171,6 +173,7 @@ class Controller:
         @return None
         """
         payload = truncate_small_values(self.output_data)
+        payload = self.convertToDirectionForce(payload)
         response = requests.post(self.db_url, json=payload)
         if response.status_code == 201:
             print("Data sent successfully.")
