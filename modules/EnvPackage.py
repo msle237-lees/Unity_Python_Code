@@ -95,29 +95,52 @@ class EnvPackage(gym.Env):
         else:
             return self.action_space.sample()
 
-    def calculate_reward(self, agent_action: int) -> float:
+    def calculate_reward(self, agent_action: int, current_observation: np.ndarray) -> float:
         """
-        Compare the agent's action to the expert action and return a reward.
+        Calculate the total reward based on:
+        - action similarity to expert action
+        - state similarity to expert's pose (position and orientation)
 
-        @param agent_action: Action taken by the agent (int)
-        @return: reward (float)
+        @param agent_action: Discrete action taken by the agent
+        @param current_observation: Sensor reading after action (7D: X, Y, Z, Roll, Pitch, Yaw, Arm)
+        @return: Combined reward
         """
-        expert_action = self.get_expert_action()
+        expert_step = self.expert_path[self.step_index]
+
+        # --- Action similarity reward ---
+        expert_direction = expert_step["direction"]
+        expert_force = expert_step["force_level"]
+        expert_action = self.encode_action(expert_direction, expert_force)
 
         if agent_action == expert_action:
-            reward = 1.0  # Max reward for matching expert
+            action_reward = 1.0
         else:
-            # Normalize the penalty based on the action distance
             distance = abs(agent_action - expert_action)
-            max_distance = self.action_space.n - 1
-            reward = 1.0 - (distance / max_distance)
+            action_reward = 1.0 - (distance / (self.action_space.n - 1))  # Normalize [0, 1]
+
+        # --- Sensor/state similarity reward ---
+        expert_pose = np.array([
+            expert_step["X"],
+            expert_step["Y"],
+            expert_step["Z"],
+            expert_step["Roll"],
+            expert_step["Pitch"],
+            expert_step["Yaw"]
+        ], dtype=np.float32)
+
+        current_pose = current_observation[:6]  # exclude arm
+
+        # Compute L2 distance (or use MSE if preferred)
+        pose_error = np.linalg.norm(current_pose - expert_pose)
+        max_error = 10.0  # Adjust based on sim range
+        pose_reward = max(0.0, 1.0 - (pose_error / max_error))
+
+        # --- Combine rewards ---
+        total_reward = 0.5 * action_reward + 0.5 * pose_reward
 
         # Advance expert index
-        self.step_index += 1
-        if self.step_index >= len(self.expert_path):
-            self.step_index = len(self.expert_path) - 1  # Clamp to end
-
-        return reward
+        self.step_index = min(self.step_index + 1, len(self.expert_path) - 1)
+        return total_reward
 
     def runSimulation(self) -> None:
         """
@@ -139,21 +162,12 @@ class EnvPackage(gym.Env):
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """
-        Execute one step in the environment.
-        @param action: Discrete action index chosen by the agent
-        @return: observation, reward, terminated, truncated, info
+        Execute one step of the environment.
         """
         self.send_action(action)
         observation = self.get_observation()
-        reward = self.calculate_reward(action)
-        # Only send action to DB if reward exceeds threshold
-        REWARD_THRESHOLD = 0.9  # tweak based on your reward scale
-
-        if reward >= REWARD_THRESHOLD:
-            self.send_action(action)
-
+        reward = self.calculate_reward(action, observation)
         terminated = self.get_terminated()
-        truncated = False  # You can implement truncation logic if needed
+        truncated = False
         info = {}
-
         return observation, reward, terminated, truncated, info

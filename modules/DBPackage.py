@@ -38,7 +38,7 @@ class Inputs(db.Model):
     step_index = db.Column(db.Integer)  # ///< Index of the action step
     direction = db.Column(db.String(1024))  # ///< Directions taken by the agent, stored as comma-separated string
     force_level = db.Column(db.Integer)  # ///< Force level applied
-    arm = db.Column(db.Integer)  # ///< Arm state (0 or 1)
+    arm = db.Column(db.Integer)  # ///< Arm state (0 or 1),
 
     def __repr__(self):
         return f"Inputs(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, arm={self.arm})"
@@ -56,9 +56,29 @@ class ExpertPath(db.Model):
     direction = db.Column(db.String(255))  # ///< Direction taken by the expert
     force_level = db.Column(db.Integer)  # ///< Force level applied
     arm = db.Column(db.Integer)  # ///< Arm state (0 or 1)
+    X = db.Column(db.Float)  # ///< X coordinate of the expert step
+    Y = db.Column(db.Float)  # ///< Y coordinate of the expert step
+    Z = db.Column(db.Float)  # ///< Z coordinate of the expert step
+    Roll = db.Column(db.Float)  # ///< Roll orientation of the expert step
+    Pitch = db.Column(db.Float)  # ///< Pitch orientation of the expert step
+    Yaw = db.Column(db.Float)  # ///< Yaw orientation of the expert step
 
     def __repr__(self):
-        return f"ExpertPath(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, arm={self.arm})"
+        return f"ExpertPath(id={self.id}, step_index={self.step_index}, direction={self.direction}, force_level={self.force_level}, arm={self.arm}, X={self.X}, Y={self.Y}, Z={self.Z}, Roll={self.Roll}, Pitch={self.Pitch}, Yaw={self.Yaw})"
+
+class Sensors(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # ///< Primary key ID
+    step_index = db.Column(db.Integer)  # ///< Index of the sensor step
+    arm = db.Column(db.Integer)  # ///< Arm state (0 or 1)
+    X = db.Column(db.Float)  # ///< X coordinate of the sensor step
+    Y = db.Column(db.Float)  # ///< Y coordinate of the sensor step
+    Z = db.Column(db.Float)  # ///< Z coordinate of the sensor step
+    Roll = db.Column(db.Float)  # ///< Roll orientation of the sensor step
+    Pitch = db.Column(db.Float)  # ///< Pitch orientation of the sensor step
+    Yaw = db.Column(db.Float)  # ///< Yaw orientation of the sensor step
+
+    def __repr__(self):
+        return f"Sensors(id={self.id}, step_index={self.step_index}, arm={self.arm}, X={self.X}, Y={self.Y}, Z={self.Z}, Roll={self.Roll}, Pitch={self.Pitch}, Yaw={self.Yaw})"
 
 ## @brief Route to store an agent's action in the database.
 #  @return JSON response with success message and HTTP status code.
@@ -103,7 +123,13 @@ def post_expert_path():
         step_index=data['step_index'],
         direction=data['direction'],
         force_level=data['force_level'],
-        arm=data['arm']
+        arm=data['arm'],
+        X=data['X'],
+        Y=data['Y'],
+        Z=data['Z'],
+        Roll=data['Roll'],
+        Pitch=data['Pitch'],
+        Yaw=data['Yaw']
     )
     db.session.add(new_expert_path)
     db.session.commit()
@@ -114,33 +140,69 @@ def post_expert_path():
 @app.route('/get_expert_path', methods=['GET'])
 def get_expert_path():
     """
-    Get the latest expert path from the database.
+    Get all expert path entries from the database without any conversion or filtering.
     """
-    # Get all ExpertPath entries ordered by id
     expert_steps = ExpertPath.query.order_by(ExpertPath.id.asc()).all()
-
-    # Find the indices where arm transitions from 0 to 1 and 1 to 0
-    arm_transitions = []
-    prev_direction = None
-    for idx, step in enumerate(expert_steps):
-        if prev_direction is not None and step.direction != prev_direction:
-            arm_transitions.append(idx)
-        prev_direction = step.direction
-
-    # Select the segment from first transition (0->1) to second transition (1->0)
-    if len(arm_transitions) >= 2:
-        latest_expert_path = expert_steps[arm_transitions[0]:arm_transitions[1]+1]
-    else:
-        latest_expert_path = expert_steps  # fallback: return all if transitions not found
-    data = {}
-    for step in latest_expert_path:
-        data[step.id] = {
+    data = []
+    for step in expert_steps:
+        data.append({
+            "id": step.id,
             "step_index": step.step_index,
             "direction": step.direction,
             "force_level": step.force_level,
-            "arm": step.arm
-        }
+            "arm": step.arm,
+            "X": step.X,
+            "Y": step.Y,
+            "Z": step.Z,
+            "Roll": step.Roll,
+            "Pitch": step.Pitch,
+            "Yaw": step.Yaw
+        })
     return jsonify(data), 200
+
+## @brief Route to store sensor data in the database.
+#  @return JSON response with success message and HTTP status code.
+@app.route('/post_sensor_data', methods=['POST'])
+def post_sensor_data():
+    """
+    Receive sensor data from the agent and store it in the database.
+    """
+    data = request.json
+    new_sensor_data = Sensors(
+        step_index=data['step_index'],
+        arm=data['arm'],
+        X=data['X'],
+        Y=data['Y'],
+        Z=data['Z'],
+        Roll=data['Roll'],
+        Pitch=data['Pitch'],
+        Yaw=data['Yaw']
+    )
+    db.session.add(new_sensor_data)
+    db.session.commit()
+    return jsonify({"message": "Sensor data received and stored successfully"}), 200
+
+## @brief Route to retrieve the most recent sensor data from the database.
+#  @return JSON response with the latest Sensors data and HTTP status code.
+@app.route('/get_sensor_data', methods=['GET'])
+def get_sensor_data():
+    """
+    Get the latest sensor data from the database.
+    """
+    latest_sensor_data = Sensors.query.order_by(Sensors.id.desc()).first()
+    if latest_sensor_data:
+        return jsonify({
+            "step_index": latest_sensor_data.step_index,
+            "arm": latest_sensor_data.arm,
+            "X": latest_sensor_data.X,
+            "Y": latest_sensor_data.Y,
+            "Z": latest_sensor_data.Z,
+            "Roll": latest_sensor_data.Roll,
+            "Pitch": latest_sensor_data.Pitch,
+            "Yaw": latest_sensor_data.Yaw
+        }), 200
+    else:
+        return jsonify({"message": "No sensor data found"}), 404
 
 ## @brief Ensure all tables are created before the first request.
 with app.app_context():

@@ -19,6 +19,7 @@ class unityInterface:
         else:
             self.unityComms = UnityComms(port=unity_port)
         self.inputsURL = f'http://{inputs_url}:{inputs_port}'
+        self.sensorsURL = f'http://{inputs_url}:{inputs_port}/post_sensor_data'
         self.test = test
 
     def _restartSubPosition(self) -> None:
@@ -90,7 +91,55 @@ class unityInterface:
         if self.test:
             print(f"Test mode: would send {data} to Unity as velocity {velocity}")
         else:
-            self.unityComms.setSubMeasuredVel(velocity)
+            self.unityComms.setSubSetVel(velocity)
+
+    def _sendSensorsToDB(self, sensors: dict) -> None:
+        """
+        Send sensor data to Unity.
+        """
+        if not sensors:
+            raise ValueError("Sensor data cannot be empty.")
+
+        # If the sensors are not empty, send them to the Unity server
+        response = requests.post(self.sensorsURL, json=sensors)
+        if response.status_code != 200:
+            raise Exception(f"Failed to send sensors: {response.status_code} {response.text}")
+        
+    @dataclass
+    class SensorData:
+        """
+        Data class to hold sensor data.
+        """
+        step_index: int
+        arm: int
+        X: float
+        Y: float
+        Z: float
+        Roll: float
+        Pitch: float
+        Yaw: float
+
+    def _getSensorDataFromUnity(self) -> SensorData:
+        """
+        Get sensor data from Unity.
+        """
+        if self.unityComms is None:
+            raise Exception("UnityComms is not initialized. Cannot get sensor data in test mode.")
+        
+        sensor_data = self.unityComms.getSubMeasuredVel()
+        if not sensor_data:
+            raise ValueError("No sensor data received from Unity.")
+
+        return self.SensorData(
+            step_index=sensor_data['step_index'],
+            arm=sensor_data['arm'],
+            X=sensor_data['X'],
+            Y=sensor_data['Y'],
+            Z=sensor_data['Z'],
+            Roll=sensor_data['Roll'],
+            Pitch=sensor_data['Pitch'],
+            Yaw=sensor_data['Yaw']
+        )
 
     def run(self) -> None:
         """
@@ -127,6 +176,18 @@ class unityInterface:
                     self._restartSubPosition()
                 else:
                     self._sendToUnity(inputs)
+                sensors = self._getSensorDataFromUnity()
+                sensor_data = {
+                    "step_index": sensors.step_index,
+                    "arm": sensors.arm,
+                    "X": sensors.X,
+                    "Y": sensors.Y,
+                    "Z": sensors.Z,
+                    "Roll": sensors.Roll,
+                    "Pitch": sensors.Pitch,
+                    "Yaw": sensors.Yaw
+                }
+                self._sendSensorsToDB(sensor_data)
                 time.sleep(0.1)
 
 if __name__ == "__main__":

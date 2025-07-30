@@ -1,139 +1,80 @@
-"""
-Train an AUV control policy using PPO with a custom Gym environment, running on CPU.
-Supports continuing training from existing model checkpoints.
-"""
-
-import os
-import argparse
-import numpy as np
-import torch
-from datetime import datetime
-from stable_baselines3 import PPO
-from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.vec_env import SubprocVecEnv
-from stable_baselines3.common.policies import ActorCriticPolicy
-from stable_baselines3.common.torch_layers import MlpExtractor
-from EnvPackage import EnvPackage  # Adjust if in a different module
-
-
-class CustomMLPPolicy(ActorCriticPolicy):
-    """
-    Custom MLP Policy with a larger network architecture for improved performance.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(
-            *args,
-            **kwargs,
-            net_arch=dict(pi=[512, 256, 128], vf=[512, 256, 128]),
-            activation_fn=torch.nn.ReLU
-        )
-
-def make_env():
-    """
-    Create a wrapped environment instance.
-    """
-    def _init():
-        return EnvPackage(
-            db_url="http://localhost:",
-            dbPort=5000
-        )
-    return _init
-
-def find_latest_model():
-    """Find the most recent model checkpoint."""
-    logs_dir = "logs"
-    if not os.path.exists(logs_dir):
-        return None
-
-    # Get all run directories
-    run_dirs = [d for d in os.listdir(logs_dir) if d.startswith("run_")]
-    if not run_dirs:
-        return None
-
-    # Sort by timestamp (newest first)
-    run_dirs.sort(reverse=True)
-
-    # Look for model file in the most recent run
-    for run_dir in run_dirs:
-        model_path = os.path.join(logs_dir, run_dir, "ppo_auv_model.zip")
-        if os.path.exists(model_path):
-            return model_path
-
-    return None
+import requests
+import time
 
 
 def main():
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Train AUV control policy with PPO")
-    parser.add_argument("--continue_from", type=str, default='logs/run_20250709_135310/ppo_auv_model.zip', help="Path to existing model to continue training from")
-    parser.add_argument("--timesteps", type=int, default=1_000_000, help="Number of training timesteps")
-    parser.add_argument("--fresh", action="store_true", help="Force fresh training (ignore existing models)")
-    args = parser.parse_args()
+    """
+    Combine the latest action and sensor data into expert path entries,
+    and post them to the expert_path endpoint, avoiding duplicates.
+    """
+    base_url = "http://localhost:5000"
+    get_action_url = f"{base_url}/get_action"
+    get_sensor_url = f"{base_url}/get_sensor_data"
+    post_expert_url = f"{base_url}/post_expert_path"
 
-    # Force CPU usage instead of GPU
-    device = "cpu"
+    last_step_index = -1  # Initialize to an invalid index
 
-    # Validate custom environment
-    check_env(make_env(), warn=True)
+    while True:
+        # Step 1: Get latest action
+        try:
+            action_response = requests.get(get_action_url)
+            if action_response.status_code != 200:
+                print("Failed to retrieve action:", action_response.text)
+                time.sleep(1)
+                continue
+            action_data = action_response.json()
+        except Exception as e:
+            print(f"Exception getting action: {e}")
+            time.sleep(1)
+            continue
 
-    # Create vectorized environment
-    NUM_ENVS = os.cpu_count() or 4
-    env = SubprocVecEnv([make_env for _ in range(NUM_ENVS)])
+        # Deduplication check
+        current_step_index = action_data.get("step_index")
+        if current_step_index == last_step_index:
+            time.sleep(0.1)
+            continue
 
-    # Determine which model to load
-    existing_model_path = None
+        # Step 2: Get latest sensor reading
+        try:
+            sensor_response = requests.get(get_sensor_url)
+            if sensor_response.status_code != 200:
+                print("Failed to retrieve sensor data:", sensor_response.text)
+                time.sleep(1)
+                continue
+            sensor_data = sensor_response.json()
+        except Exception as e:
+            print(f"Exception getting sensor data: {e}")
+            time.sleep(1)
+            continue
 
-    if args.fresh:
-        pass  # Ignore existing models
-    elif args.continue_from:
-        if os.path.exists(args.continue_from):
-            existing_model_path = args.continue_from
-        else:
-            existing_model_path = find_latest_model()
-    else:
-        existing_model_path = find_latest_model()
+        # Step 3: Combine data
+        expert_record = {
+            "step_index": current_step_index,
+            "direction": action_data["direction"],
+            "force_level": action_data["force_level"],
+            "arm": action_data["arm"],
+            "X": sensor_data["X"],
+            "Y": sensor_data["Y"],
+            "Z": sensor_data["Z"],
+            "Roll": sensor_data["Roll"],
+            "Pitch": sensor_data["Pitch"],
+            "Yaw": sensor_data["Yaw"]
+        }
 
-    if existing_model_path:
-        # Load existing model
-        model = PPO.load(existing_model_path, env=env, device=device)
+        # Step 4: Post to expert path
+        try:
+            post_response = requests.post(post_expert_url, json=expert_record)
+            if post_response.status_code == 200:
+                print(f"✅ Posted step_index {current_step_index}")
+                last_step_index = current_step_index
+            else:
+                print(f"❌ Failed to post: {post_response.status_code} {post_response.text}")
+        except Exception as e:
+            print(f"Exception posting expert path: {e}")
 
-        # Update tensorboard log directory for continued training
-        log_dir = os.path.join("logs", datetime.now().strftime("run_%Y%m%d_%H%M%S_continued"))
-        model.tensorboard_log = log_dir
-        os.makedirs(log_dir, exist_ok=True)
-
-    else:
-        # Logging directory
-        log_dir = os.path.join("logs", datetime.now().strftime("run_%Y%m%d_%H%M%S"))
-        os.makedirs(log_dir, exist_ok=True)
-
-        # Initialize new PPO model
-        model = PPO(
-            policy=CustomMLPPolicy,
-            env=env,
-            device=device,
-            verbose=1,
-            tensorboard_log=log_dir,
-            n_steps=5120,
-            batch_size=512,
-            gae_lambda=0.95,
-            gamma=0.99,
-            ent_coef=0.01,
-            learning_rate=5e-4,
-            clip_range=0.2,
-        )
-
-    # Train model
-    total_timesteps = args.timesteps
-    model.learn(total_timesteps=total_timesteps)
-
-    # Save trained model
-    model_path = os.path.join(log_dir, "ppo_auv_model.zip")
-    model.save(model_path)
-
-    # Cleanup
-    env.close()
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":
     main()
+
