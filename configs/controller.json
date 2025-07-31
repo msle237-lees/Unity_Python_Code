@@ -1,6 +1,6 @@
 {
     "joystick_1": {
-        "name": "Spektrum InterLink DX",
+        "name": "InterLink DX",
         "deadzone": 0.1,
         "inverted": false,
         "axis": {
