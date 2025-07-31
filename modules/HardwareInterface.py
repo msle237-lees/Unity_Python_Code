@@ -131,14 +131,14 @@ class unityInterface:
             raise ValueError("No sensor data received from Unity.")
 
         return self.SensorData(
-            step_index=sensor_data['step_index'],
-            arm=sensor_data['arm'],
-            X=sensor_data['X'],
-            Y=sensor_data['Y'],
-            Z=sensor_data['Z'],
-            Roll=sensor_data['Roll'],
-            Pitch=sensor_data['Pitch'],
-            Yaw=sensor_data['Yaw']
+            step_index=sensor_data['step_index'] / 100,
+            arm=sensor_data['arm'] / 100,
+            X=sensor_data['X'] / 100,
+            Y=sensor_data['Y'] / 100,
+            Z=sensor_data['Z'] / 100,
+            Roll=sensor_data['Roll'] / 100,
+            Pitch=sensor_data['Pitch'] / 100,
+            Yaw=sensor_data['Yaw'] / 100
         )
 
     def run(self) -> None:
